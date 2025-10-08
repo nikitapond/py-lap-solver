@@ -38,7 +38,7 @@ class Lap1015Solver(LapSolver):
     def is_available():
         """Check if the LAP1015 solver is available."""
         try:
-            from py_lap_solver import _lap1015
+            from py_lap_solver import _lap1015  # noqa: F401
 
             return True
         except ImportError:
@@ -114,10 +114,7 @@ class Lap1015Solver(LapSolver):
 
         # Determine num_valid for C++ call
         # Don't use num_valid for padded rectangular matrices (padding handles it)
-        if was_padded:
-            num_valid_arg = -1
-        else:
-            num_valid_arg = num_valid if num_valid is not None else -1
+        num_valid_arg = -1 if was_padded else (num_valid if num_valid is not None else -1)
 
         # Choose precision based on input dtype
         if cost_matrix.dtype == np.float32:

@@ -9,7 +9,7 @@ from get_cost_matrices import (
     get_masked_square_matrix,
 )
 
-from py_lap_solver.solvers import get_available_solvers
+from py_lap_solver.solvers import BatchedScipySolver, get_available_solvers
 
 
 def benchmark_all_solvers_single(matrix_generator, **generator_kwargs):

@@ -43,7 +43,7 @@ class BatchedScipySolver(LapSolver):
     def is_available():
         """Check if the batched scipy solver is available."""
         try:
-            from py_lap_solver import _batched_scipy_lap
+            from py_lap_solver import _batched_scipy_lap  # noqa: F401
 
             return True
         except ImportError:
