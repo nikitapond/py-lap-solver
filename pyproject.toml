@@ -1,0 +1,63 @@
+[build-system]
+requires = [
+    "scikit-build-core>=0.3.3",
+    "pybind11>=2.10.0",
+]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "py-lap-solver"
+version = "0.1.0"
+description = "Unified Python framework for Linear Assignment Problem solvers"
+readme = "README.md"
+authors = [
+    { name = "Your Name", email = "your.email@example.com" }
+]
+license = { text = "MIT" }
+requires-python = ">=3.8"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: C++",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = [
+    "numpy>=1.20.0",
+    "scipy>=1.7.0",  # For ScipySolver
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0",
+]
+dev = [
+    "pytest>=7.0",
+    "black",
+    "ruff",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/py-lap-solver"
+Repository = "https://github.com/yourusername/py-lap-solver"
+
+[tool.scikit-build]
+cmake.minimum-version = "3.24"
+cmake.build-type = "Release"
+wheel.packages = ["src/py_lap_solver"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+
+[tool.scikit-build.cmake.define]
+CMAKE_BUILD_TYPE = "Release"
+# Use generic flags for portability, users can override for specific architectures
+CMAKE_C_FLAGS_RELEASE = "-O3 -fPIC"
+CMAKE_CXX_FLAGS_RELEASE = "-O3 -fPIC"
