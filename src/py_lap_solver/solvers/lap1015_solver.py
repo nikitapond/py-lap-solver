@@ -1,4 +1,5 @@
 import numpy as np
+
 from ..base import LapSolver
 
 
@@ -26,6 +27,7 @@ class Lap1015Solver(LapSolver):
         # Try to import the C++ extension
         try:
             from py_lap_solver import _lap1015
+
             self._backend = _lap1015
             self._available = True
         except ImportError:
@@ -37,6 +39,7 @@ class Lap1015Solver(LapSolver):
         """Check if the LAP1015 solver is available."""
         try:
             from py_lap_solver import _lap1015
+
             return True
         except ImportError:
             return False
@@ -46,6 +49,7 @@ class Lap1015Solver(LapSolver):
         """Check if OpenMP support is available."""
         try:
             from py_lap_solver import _lap1015
+
             return _lap1015.HAS_OPENMP
         except ImportError:
             return False
@@ -55,6 +59,7 @@ class Lap1015Solver(LapSolver):
         """Check if CUDA support is available."""
         try:
             from py_lap_solver import _lap1015
+
             return _lap1015.HAS_CUDA
         except ImportError:
             return False
@@ -116,18 +121,12 @@ class Lap1015Solver(LapSolver):
 
         # Choose precision based on input dtype
         if cost_matrix.dtype == np.float32:
-            result = self._backend.solve_lap_float(
-                cost_matrix,
-                num_valid=num_valid_arg
-            )
+            result = self._backend.solve_lap_float(cost_matrix, num_valid=num_valid_arg)
         else:
             # Convert to float64 if necessary
             if cost_matrix.dtype != np.float64:
                 cost_matrix = cost_matrix.astype(np.float64)
-            result = self._backend.solve_lap_double(
-                cost_matrix,
-                num_valid=num_valid_arg
-            )
+            result = self._backend.solve_lap_double(cost_matrix, num_valid=num_valid_arg)
 
         # Trim result back to original row dimension
         if len(result) > original_n_rows:

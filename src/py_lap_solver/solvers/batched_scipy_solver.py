@@ -1,4 +1,5 @@
 import numpy as np
+
 from ..base import LapSolver
 
 
@@ -31,6 +32,7 @@ class BatchedScipySolver(LapSolver):
         # Try to import the C++ extension
         try:
             from py_lap_solver import _batched_scipy_lap
+
             self._backend = _batched_scipy_lap
             self._available = True
         except ImportError:
@@ -42,6 +44,7 @@ class BatchedScipySolver(LapSolver):
         """Check if the batched scipy solver is available."""
         try:
             from py_lap_solver import _batched_scipy_lap
+
             return True
         except ImportError:
             return False
@@ -51,6 +54,7 @@ class BatchedScipySolver(LapSolver):
         """Check if OpenMP support is available."""
         try:
             from py_lap_solver import _batched_scipy_lap
+
             return _batched_scipy_lap.HAS_OPENMP
         except ImportError:
             return False
@@ -93,14 +97,14 @@ class BatchedScipySolver(LapSolver):
                 batch_cost,
                 maximize=self.maximize,
                 num_valid=num_valid_arg,
-                unassigned_value=self.unassigned_value
+                unassigned_value=self.unassigned_value,
             )
         else:
             result = self._backend.solve_batched_lap_double(
                 batch_cost,
                 maximize=self.maximize,
                 num_valid=num_valid_arg,
-                unassigned_value=self.unassigned_value
+                unassigned_value=self.unassigned_value,
             )
 
         return result[0]
@@ -147,12 +151,12 @@ class BatchedScipySolver(LapSolver):
                 batch_cost_matrices,
                 maximize=self.maximize,
                 num_valid=num_valid_arg,
-                unassigned_value=self.unassigned_value
+                unassigned_value=self.unassigned_value,
             )
         else:
             return self._backend.solve_batched_lap_double(
                 batch_cost_matrices,
                 maximize=self.maximize,
                 num_valid=num_valid_arg,
-                unassigned_value=self.unassigned_value
+                unassigned_value=self.unassigned_value,
             )

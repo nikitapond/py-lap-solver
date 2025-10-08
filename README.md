@@ -22,34 +22,108 @@ pip install -e ".[dev]"
 
 - **Unified Interface**: Common API across all solver implementations
 - **Multiple Backends**:
-  - ScipySolver: Pure Python implementation using scipy
-  - SgutheSolver: Optimized C++ implementation with optional OpenMP parallelization
-- **Batch Processing**: Solve multiple LAP instances efficiently
-- **Optional GPU Support**: CUDA acceleration (when available)
+  - **ScipySolver**: Pure Python implementation using scipy's Hungarian algorithm
+  - **BatchedScipySolver**: C++ implementation with OpenMP parallelization for batch processing
+  - **Lap1015Solver**: Highly optimized C++ implementation (shortest augmenting path algorithm)
+- **Batch Processing**: Solve multiple LAP instances efficiently with OpenMP parallelization
+- **Flexible Input**: Support for square and rectangular cost matrices
+- **Optional GPU Support**: CUDA support in LAP1015 (not yet fully exposed in Python bindings)
 
 ## Usage
 
 ```python
-from py_lap_solver.solvers import ScipySolver, SgutheSolver
+from py_lap_solver.solvers import ScipySolver, BatchedScipySolver, Lap1015Solver
 import numpy as np
 
 # Create a cost matrix
 cost_matrix = np.random.rand(100, 100)
 
-# Use scipy solver
+# Use scipy solver (always available)
 scipy_solver = ScipySolver()
-row_ind, col_ind = scipy_solver.solve_single(cost_matrix)
+assignments = scipy_solver.solve_single(cost_matrix)
 
-# Use C++ solver (if available)
-if SgutheSolver.is_available():
-    sguthe_solver = SgutheSolver(use_openmp=True)
-    row_ind, col_ind = sguthe_solver.solve_single(cost_matrix)
+# Use batched scipy solver with OpenMP (if C++ extensions are available)
+if BatchedScipySolver.is_available():
+    batch_solver = BatchedScipySolver()
+    batch_matrices = np.random.rand(10, 100, 100)
+    batch_assignments = batch_solver.batch_solve(batch_matrices)
+
+# Use LAP1015 solver (if C++ extensions are available)
+if Lap1015Solver.is_available():
+    lap_solver = Lap1015Solver()
+    assignments = lap_solver.solve_single(cost_matrix)
+
+    # Check for OpenMP support
+    if Lap1015Solver.has_openmp():
+        print("OpenMP parallelization available")
 ```
 
-## Testing
+### Building with C++ Extensions
+
+To enable the optimized C++ solvers, you need CMake and build tools:
 
 ```bash
-python benchmarks/test_correctness.py
+# Install build dependencies
+pip install scikit-build-core pybind11
+
+# Build and install with C++ extensions
+pip install -e . --no-build-isolation
+
+# On macOS, you may need to install libomp for OpenMP support
+brew install libomp
+```
+
+## Development
+
+### Installation
+
+```bash
+# Install with development dependencies (includes black, ruff, pytest)
+pip install -e ".[dev]"
+```
+
+### Code Formatting and Linting
+
+The project uses `black` for code formatting and `ruff` for linting. A Makefile is provided for convenience:
+
+```bash
+# Format code with black
+make format
+
+# Lint code with ruff
+make lint
+
+# Auto-fix linting issues
+make lint-fix
+
+# Run all checks
+make check
+
+# Format, lint-fix, check, and test in one command
+make all
+```
+
+Or use the tools directly:
+
+```bash
+# Format code
+black src/ tests/
+
+# Lint code
+ruff check src/ tests/
+
+# Auto-fix linting issues
+ruff check --fix src/ tests/
+```
+
+### Testing
+
+```bash
+# Run tests with pytest
+pytest tests/
+
+# Or use make
+make test
 ```
 
 ## License

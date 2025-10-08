@@ -2,14 +2,14 @@
 
 import numpy as np
 import pytest
-from scipy.optimize import linear_sum_assignment
-from py_lap_solver.solvers import get_available_solvers
 from get_cost_matrices import (
+    get_full_rect_matrix,
     get_full_square_matrix,
     get_masked_square_matrix,
-    get_full_rect_matrix,
-    get_masked_rect_matrix,
 )
+from scipy.optimize import linear_sum_assignment
+
+from py_lap_solver.solvers import get_available_solvers
 
 
 def scipy_reference(cost_matrix):
@@ -70,10 +70,10 @@ def full_square_problem(request):
     ref_cost = compute_assignment_cost(cost_matrix, ref_row_to_col)
 
     return {
-        'cost_matrix': cost_matrix,
-        'ref_row_to_col': ref_row_to_col,
-        'ref_cost': ref_cost,
-        'num_valid': None,
+        "cost_matrix": cost_matrix,
+        "ref_row_to_col": ref_row_to_col,
+        "ref_cost": ref_cost,
+        "num_valid": None,
     }
 
 
@@ -89,10 +89,10 @@ def masked_square_problem(request):
     ref_cost = compute_assignment_cost(valid_matrix, ref_row_to_col)
 
     return {
-        'cost_matrix': cost_matrix,
-        'ref_row_to_col': ref_row_to_col,
-        'ref_cost': ref_cost,
-        'num_valid': num_valid,
+        "cost_matrix": cost_matrix,
+        "ref_row_to_col": ref_row_to_col,
+        "ref_cost": ref_cost,
+        "num_valid": num_valid,
     }
 
 
@@ -105,10 +105,10 @@ def full_rect_problem(request):
     ref_cost = compute_assignment_cost(cost_matrix, ref_row_to_col)
 
     return {
-        'cost_matrix': cost_matrix,
-        'ref_row_to_col': ref_row_to_col,
-        'ref_cost': ref_cost,
-        'num_valid': None,
+        "cost_matrix": cost_matrix,
+        "ref_row_to_col": ref_row_to_col,
+        "ref_cost": ref_cost,
+        "num_valid": None,
     }
 
 
@@ -123,14 +123,16 @@ def batch_square_problem(request):
     for i in range(batch_size):
         ref_row_to_col = scipy_reference(batch_matrices[i])
         ref_cost = compute_assignment_cost(batch_matrices[i], ref_row_to_col)
-        ref_solutions.append({
-            'ref_row_to_col': ref_row_to_col,
-            'ref_cost': ref_cost,
-        })
+        ref_solutions.append(
+            {
+                "ref_row_to_col": ref_row_to_col,
+                "ref_cost": ref_cost,
+            }
+        )
 
     return {
-        'batch_matrices': batch_matrices,
-        'ref_solutions': ref_solutions,
+        "batch_matrices": batch_matrices,
+        "ref_solutions": ref_solutions,
     }
 
 
@@ -143,15 +145,16 @@ class TestSolverConsistency:
         problem = full_square_problem
         solver = solver_class()
 
-        row_to_col = solver.solve_single(problem['cost_matrix'])
-        cost = compute_assignment_cost(problem['cost_matrix'], row_to_col)
+        row_to_col = solver.solve_single(problem["cost_matrix"])
+        cost = compute_assignment_cost(problem["cost_matrix"], row_to_col)
 
         # Check costs match
-        assert np.isclose(cost, problem['ref_cost'], atol=1e-6), \
-            f"{solver_name}: Cost mismatch: {cost} vs {problem['ref_cost']}"
+        assert np.isclose(
+            cost, problem["ref_cost"], atol=1e-6
+        ), f"{solver_name}: Cost mismatch: {cost} vs {problem['ref_cost']}"
 
         # Check shapes
-        n_rows = problem['cost_matrix'].shape[0]
+        n_rows = problem["cost_matrix"].shape[0]
         assert row_to_col.shape == (n_rows,)
 
     def test_masked_square_matrices(self, solver_name, solver_class, masked_square_problem):
@@ -159,22 +162,20 @@ class TestSolverConsistency:
         problem = masked_square_problem
         solver = solver_class()
 
-        row_to_col = solver.solve_single(
-            problem['cost_matrix'],
-            num_valid=problem['num_valid']
-        )
+        row_to_col = solver.solve_single(problem["cost_matrix"], num_valid=problem["num_valid"])
 
         # Only check the valid portion
-        num_valid = problem['num_valid']
-        valid_matrix = problem['cost_matrix'][:num_valid, :num_valid]
+        num_valid = problem["num_valid"]
+        valid_matrix = problem["cost_matrix"][:num_valid, :num_valid]
         cost = compute_assignment_cost(valid_matrix, row_to_col[:num_valid])
 
         # Check costs match
-        assert np.isclose(cost, problem['ref_cost'], atol=1e-6), \
-            f"{solver_name}: Cost mismatch: {cost} vs {problem['ref_cost']}"
+        assert np.isclose(
+            cost, problem["ref_cost"], atol=1e-6
+        ), f"{solver_name}: Cost mismatch: {cost} vs {problem['ref_cost']}"
 
         # Check shapes match original matrix
-        n_rows = problem['cost_matrix'].shape[0]
+        n_rows = problem["cost_matrix"].shape[0]
         assert row_to_col.shape == (n_rows,)
 
     def test_full_rect_matrices(self, solver_name, solver_class, full_rect_problem):
@@ -182,15 +183,16 @@ class TestSolverConsistency:
         problem = full_rect_problem
         solver = solver_class()
 
-        row_to_col = solver.solve_single(problem['cost_matrix'])
-        cost = compute_assignment_cost(problem['cost_matrix'], row_to_col)
+        row_to_col = solver.solve_single(problem["cost_matrix"])
+        cost = compute_assignment_cost(problem["cost_matrix"], row_to_col)
 
         # Check costs match
-        assert np.isclose(cost, problem['ref_cost'], atol=1e-6), \
-            f"{solver_name}: Cost mismatch: {cost} vs {problem['ref_cost']}"
+        assert np.isclose(
+            cost, problem["ref_cost"], atol=1e-6
+        ), f"{solver_name}: Cost mismatch: {cost} vs {problem['ref_cost']}"
 
         # Check shapes
-        n_rows = problem['cost_matrix'].shape[0]
+        n_rows = problem["cost_matrix"].shape[0]
         assert row_to_col.shape == (n_rows,)
 
     def test_batch_square(self, solver_name, solver_class, batch_square_problem):
@@ -198,13 +200,14 @@ class TestSolverConsistency:
         problem = batch_square_problem
         solver = solver_class()
 
-        results = solver.batch_solve(problem['batch_matrices'])
+        results = solver.batch_solve(problem["batch_matrices"])
 
-        assert results.shape[0] == len(problem['ref_solutions'])
+        assert results.shape[0] == len(problem["ref_solutions"])
 
-        for i in range(len(problem['ref_solutions'])):
-            ref = problem['ref_solutions'][i]
-            cost = compute_assignment_cost(problem['batch_matrices'][i], results[i])
+        for i in range(len(problem["ref_solutions"])):
+            ref = problem["ref_solutions"][i]
+            cost = compute_assignment_cost(problem["batch_matrices"][i], results[i])
 
-            assert np.isclose(cost, ref['ref_cost'], atol=1e-6), \
-                f"{solver_name}: Batch {i} cost mismatch"
+            assert np.isclose(
+                cost, ref["ref_cost"], atol=1e-6
+            ), f"{solver_name}: Batch {i} cost mismatch"

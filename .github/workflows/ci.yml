@@ -29,7 +29,7 @@ jobs:
 
     - name: Run correctness tests
       run: |
-        python benchmarks/test_correctness.py
+        pytest tests/
 
   test-with-cpp:
     runs-on: ${{ matrix.os }}
@@ -65,7 +65,7 @@ jobs:
 
     - name: Run correctness tests (with C++ solver)
       run: |
-        python benchmarks/test_correctness.py
+        pytest tests/
 
   lint:
     runs-on: ubuntu-latest
@@ -85,8 +85,8 @@ jobs:
 
     - name: Check code formatting with black
       run: |
-        black --check src/ benchmarks/
+        black --check src/ tests/
 
     - name: Lint with ruff
       run: |
-        ruff check src/ benchmarks/
+        ruff check src/ tests/

@@ -1,14 +1,15 @@
 """Benchmarking script for LAP solvers."""
 
 import time
-import numpy as np
-from py_lap_solver.solvers import get_available_solvers
+
 from get_cost_matrices import (
-    get_full_square_matrix,
-    get_masked_square_matrix,
     get_full_rect_matrix,
+    get_full_square_matrix,
     get_masked_rect_matrix,
+    get_masked_square_matrix,
 )
+
+from py_lap_solver.solvers import get_available_solvers
 
 
 def benchmark_all_solvers_single(matrix_generator, **generator_kwargs):
@@ -40,10 +41,10 @@ def benchmark_all_solvers_single(matrix_generator, **generator_kwargs):
         num_valid = None
 
     results = {
-        'matrix_size': cost_matrix.shape,
-        'num_valid': num_valid,
-        'generator': matrix_generator.__name__,
-        'solvers': {}
+        "matrix_size": cost_matrix.shape,
+        "num_valid": num_valid,
+        "generator": matrix_generator.__name__,
+        "solvers": {},
     }
 
     # Benchmark each solver
@@ -60,10 +61,7 @@ def benchmark_all_solvers_single(matrix_generator, **generator_kwargs):
 
         elapsed = end_time - start_time
 
-        results['solvers'][solver_name] = {
-            'time': elapsed,
-            'assignment': assignment
-        }
+        results["solvers"][solver_name] = {"time": elapsed, "assignment": assignment}
 
     return results
 
@@ -97,11 +95,11 @@ def benchmark_all_solvers_batch_single(matrix_generator, **generator_kwargs):
         num_valid = None
 
     results = {
-        'matrix_size': batch_matrices.shape[1:],
-        'batch_size': 1,
-        'num_valid': num_valid,
-        'generator': matrix_generator.__name__,
-        'solvers': {}
+        "matrix_size": batch_matrices.shape[1:],
+        "batch_size": 1,
+        "num_valid": num_valid,
+        "generator": matrix_generator.__name__,
+        "solvers": {},
     }
 
     # Benchmark each solver
@@ -118,10 +116,7 @@ def benchmark_all_solvers_batch_single(matrix_generator, **generator_kwargs):
 
         elapsed = end_time - start_time
 
-        results['solvers'][solver_name] = {
-            'time': elapsed,
-            'assignments': assignments
-        }
+        results["solvers"][solver_name] = {"time": elapsed, "assignments": assignments}
 
     return results
 
@@ -157,11 +152,11 @@ def benchmark_all_solvers_batch(matrix_generator, batch_size, **generator_kwargs
         num_valid = None
 
     results = {
-        'matrix_size': batch_matrices.shape[1:],
-        'batch_size': batch_size,
-        'num_valid': num_valid,
-        'generator': matrix_generator.__name__,
-        'solvers': {}
+        "matrix_size": batch_matrices.shape[1:],
+        "batch_size": batch_size,
+        "num_valid": num_valid,
+        "generator": matrix_generator.__name__,
+        "solvers": {},
     }
 
     # Benchmark each solver
@@ -178,10 +173,10 @@ def benchmark_all_solvers_batch(matrix_generator, batch_size, **generator_kwargs
 
         elapsed = end_time - start_time
 
-        results['solvers'][solver_name] = {
-            'time': elapsed,
-            'throughput': batch_size / elapsed,  # problems per second
-            'assignments': assignments
+        results["solvers"][solver_name] = {
+            "time": elapsed,
+            "throughput": batch_size / elapsed,  # problems per second
+            "assignments": assignments,
         }
 
     return results
@@ -192,11 +187,11 @@ def print_single_results(results):
     print(f"\n{'='*70}")
     print(f"Generator: {results['generator']}")
     print(f"Matrix size: {results['matrix_size']}")
-    if results['num_valid'] is not None:
+    if results["num_valid"] is not None:
         print(f"Valid size: {results['num_valid']}")
     print(f"{'='*70}")
 
-    for solver_name, solver_results in results['solvers'].items():
+    for solver_name, solver_results in results["solvers"].items():
         print(f"{solver_name:25s}: {solver_results['time']*1000:8.3f} ms")
 
 
@@ -205,14 +200,14 @@ def print_batch_results(results):
     print(f"\n{'='*70}")
     print(f"Generator: {results['generator']}")
     print(f"Matrix size: {results['matrix_size']}, Batch size: {results['batch_size']}")
-    if results['num_valid'] is not None:
+    if results["num_valid"] is not None:
         print(f"Valid size: {results['num_valid']}")
     print(f"{'='*70}")
 
-    for solver_name, solver_results in results['solvers'].items():
-        time_ms = solver_results['time'] * 1000
-        if 'throughput' in solver_results:
-            throughput = solver_results['throughput']
+    for solver_name, solver_results in results["solvers"].items():
+        time_ms = solver_results["time"] * 1000
+        if "throughput" in solver_results:
+            throughput = solver_results["throughput"]
             print(f"{solver_name:25s}: {time_ms:8.3f} ms  ({throughput:8.1f} problems/sec)")
         else:
             print(f"{solver_name:25s}: {time_ms:8.3f} ms")
@@ -220,9 +215,9 @@ def print_batch_results(results):
 
 def run_full_benchmark_suite():
     """Run comprehensive benchmark suite."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("LAP Solver Benchmark Suite")
-    print("="*70)
+    print("=" * 70)
 
     # Matrix sizes to test
     square_sizes = [10, 50, 100, 500, 1000]
@@ -235,9 +230,9 @@ def run_full_benchmark_suite():
     # ========================================================================
     # Single problem benchmarks (using solve_single)
     # ========================================================================
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("SINGLE PROBLEM BENCHMARKS (solve_single)")
-    print("="*70)
+    print("=" * 70)
 
     # Full square matrices
     for size in square_sizes:
@@ -251,28 +246,20 @@ def run_full_benchmark_suite():
 
     # Full rectangular matrices
     for n_rows, n_cols in rect_sizes:
-        results = benchmark_all_solvers_single(
-            get_full_rect_matrix,
-            n_rows=n_rows,
-            n_cols=n_cols
-        )
+        results = benchmark_all_solvers_single(get_full_rect_matrix, n_rows=n_rows, n_cols=n_cols)
         print_single_results(results)
 
     # Masked rectangular matrices
     for n_rows, n_cols in [(50, 100), (100, 200)]:
-        results = benchmark_all_solvers_single(
-            get_masked_rect_matrix,
-            n_rows=n_rows,
-            n_cols=n_cols
-        )
+        results = benchmark_all_solvers_single(get_masked_rect_matrix, n_rows=n_rows, n_cols=n_cols)
         print_single_results(results)
 
     # ========================================================================
     # Batch size = 1 benchmarks (using batch_solve)
     # ========================================================================
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("BATCH SIZE = 1 BENCHMARKS (batch_solve)")
-    print("="*70)
+    print("=" * 70)
 
     for size in [50, 100, 500]:
         results = benchmark_all_solvers_batch_single(get_full_square_matrix, size=size)
@@ -281,9 +268,9 @@ def run_full_benchmark_suite():
     # ========================================================================
     # Variable batch size benchmarks
     # ========================================================================
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("VARIABLE BATCH SIZE BENCHMARKS")
-    print("="*70)
+    print("=" * 70)
 
     # Square matrices with varying batch sizes
     for size in [50, 100, 500]:
@@ -292,9 +279,7 @@ def run_full_benchmark_suite():
             if batch_size == 1:
                 continue  # Already tested above
             results = benchmark_all_solvers_batch(
-                get_full_square_matrix,
-                batch_size=batch_size,
-                size=size
+                get_full_square_matrix, batch_size=batch_size, size=size
             )
             print_batch_results(results)
 
@@ -303,42 +288,34 @@ def run_full_benchmark_suite():
         print(f"\n--- Rectangular matrices ({n_rows}x{n_cols}) ---")
         for batch_size in [10, 50, 100]:
             results = benchmark_all_solvers_batch(
-                get_full_rect_matrix,
-                batch_size=batch_size,
-                n_rows=n_rows,
-                n_cols=n_cols
+                get_full_rect_matrix, batch_size=batch_size, n_rows=n_rows, n_cols=n_cols
             )
             print_batch_results(results)
 
     # Masked matrices with varying batch sizes
-    print(f"\n--- Masked square matrices (100x100) ---")
+    print("\n--- Masked square matrices (100x100) ---")
     for batch_size in [10, 50, 100]:
         results = benchmark_all_solvers_batch(
-            get_masked_square_matrix,
-            batch_size=batch_size,
-            size=100
+            get_masked_square_matrix, batch_size=batch_size, size=100
         )
         print_batch_results(results)
 
     # ========================================================================
     # Large matrices with small batches
     # ========================================================================
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("LARGE MATRICES WITH SMALL BATCHES")
-    print("="*70)
+    print("=" * 70)
 
     for size in large_sizes:
         print(f"\n--- Large square matrices ({size}x{size}) with small batches ---")
-        
-        results = benchmark_all_solvers_single(
-            get_full_square_matrix,
-            size=size
-        )
+
+        results = benchmark_all_solvers_single(get_full_square_matrix, size=size)
         print_single_results(results)
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("Benchmark suite complete!")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
 
 if __name__ == "__main__":
