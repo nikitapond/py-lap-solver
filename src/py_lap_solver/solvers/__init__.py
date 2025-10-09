@@ -3,6 +3,7 @@
 from .batched_scipy_solver import BatchedScipySolver
 from .lap1015_solver import Lap1015Solver
 from .scipy_solver import ScipySolver
+from .registry import Solvers, get_all_available_solvers, get_solver_by_name
 
 
 def get_available_solvers():
@@ -25,4 +26,12 @@ def get_available_solvers():
     return solvers
 
 
-__all__ = ["ScipySolver", "BatchedScipySolver", "Lap1015Solver", "get_available_solvers"]
+__all__ = [
+    "ScipySolver",
+    "BatchedScipySolver",
+    "Lap1015Solver",
+    "Solvers",
+    "get_available_solvers",
+    "get_all_available_solvers",
+    "get_solver_by_name",
+]
