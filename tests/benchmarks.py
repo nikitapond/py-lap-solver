@@ -9,7 +9,7 @@ from get_cost_matrices import (
     get_masked_square_matrix,
 )
 
-from py_lap_solver.solvers import BatchedScipySolver, get_available_solvers
+from py_lap_solver.solvers import Solvers
 
 
 def benchmark_all_solvers_single(matrix_generator, **generator_kwargs):
@@ -48,9 +48,7 @@ def benchmark_all_solvers_single(matrix_generator, **generator_kwargs):
     }
 
     # Benchmark each solver
-    for solver_name, solver_class in get_available_solvers():
-        solver = solver_class()
-
+    for solver_name, solver in Solvers.get_available_solvers().items():
         # Warmup
         _ = solver.solve_single(cost_matrix, num_valid=num_valid)
 
@@ -103,9 +101,7 @@ def benchmark_all_solvers_batch_single(matrix_generator, **generator_kwargs):
     }
 
     # Benchmark each solver
-    for solver_name, solver_class in get_available_solvers():
-        solver = solver_class()
-
+    for solver_name, solver in Solvers.get_available_solvers().items():
         # Warmup
         _ = solver.batch_solve(batch_matrices, num_valid=num_valid)
 
@@ -160,9 +156,7 @@ def benchmark_all_solvers_batch(matrix_generator, batch_size, **generator_kwargs
     }
 
     # Benchmark each solver
-    for solver_name, solver_class in get_available_solvers():
-        solver = solver_class()
-
+    for solver_name, solver in Solvers.get_available_solvers().items():
         # Warmup
         _ = solver.batch_solve(batch_matrices, num_valid=num_valid)
 
@@ -319,13 +313,11 @@ def run_full_benchmark_suite():
 
 
 if __name__ == "__main__":
-    # Check available solvers
-    print("\nAvailable solvers:")
-    for solver_name, _ in get_available_solvers():
-        print(f"  - {solver_name}")
-
-    if BatchedScipySolver.is_available():
-        print(f"  BatchedScipySolver has OpenMP: {BatchedScipySolver.has_openmp()}")
+    # Print available solvers
+    print("\n" + "=" * 70)
+    print("LAP Solver Benchmark - Available Solvers")
+    print("=" * 70)
+    Solvers.print_available_solvers()
 
     # Run the full benchmark suite
     run_full_benchmark_suite()

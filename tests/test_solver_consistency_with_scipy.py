@@ -9,7 +9,18 @@ from get_cost_matrices import (
 )
 from scipy.optimize import linear_sum_assignment
 
-from py_lap_solver.solvers import get_available_solvers
+from py_lap_solver.solvers import Solvers
+
+
+def get_all_solver_instances():
+    """Get all available solver instances from the registry.
+
+    Returns
+    -------
+    list of tuple
+        List of (name, solver_instance) tuples for all available solvers.
+    """
+    return list(Solvers.get_available_solvers().items())
 
 
 def scipy_reference(cost_matrix):
@@ -136,14 +147,14 @@ def batch_square_problem(request):
     }
 
 
-@pytest.mark.parametrize("solver_name,solver_class", get_available_solvers())
+@pytest.mark.parametrize("solver_name,solver_instance", get_all_solver_instances())
 class TestSolverConsistency:
     """Test that all solvers match scipy reference."""
 
-    def test_full_square_matrices(self, solver_name, solver_class, full_square_problem):
+    def test_full_square_matrices(self, solver_name, solver_instance, full_square_problem):
         """Test full square matrices of various sizes."""
         problem = full_square_problem
-        solver = solver_class()
+        solver = solver_instance
 
         row_to_col = solver.solve_single(problem["cost_matrix"])
         cost = compute_assignment_cost(problem["cost_matrix"], row_to_col)
@@ -157,10 +168,10 @@ class TestSolverConsistency:
         n_rows = problem["cost_matrix"].shape[0]
         assert row_to_col.shape == (n_rows,)
 
-    def test_masked_square_matrices(self, solver_name, solver_class, masked_square_problem):
+    def test_masked_square_matrices(self, solver_name, solver_instance, masked_square_problem):
         """Test masked square matrices (padded with invalid entries)."""
         problem = masked_square_problem
-        solver = solver_class()
+        solver = solver_instance
 
         row_to_col = solver.solve_single(problem["cost_matrix"], num_valid=problem["num_valid"])
 
@@ -178,10 +189,10 @@ class TestSolverConsistency:
         n_rows = problem["cost_matrix"].shape[0]
         assert row_to_col.shape == (n_rows,)
 
-    def test_full_rect_matrices(self, solver_name, solver_class, full_rect_problem):
+    def test_full_rect_matrices(self, solver_name, solver_instance, full_rect_problem):
         """Test full rectangular matrices."""
         problem = full_rect_problem
-        solver = solver_class()
+        solver = solver_instance
 
         row_to_col = solver.solve_single(problem["cost_matrix"])
         cost = compute_assignment_cost(problem["cost_matrix"], row_to_col)
@@ -195,10 +206,10 @@ class TestSolverConsistency:
         n_rows = problem["cost_matrix"].shape[0]
         assert row_to_col.shape == (n_rows,)
 
-    def test_batch_square(self, solver_name, solver_class, batch_square_problem):
+    def test_batch_square(self, solver_name, solver_instance, batch_square_problem):
         """Test batch solving with square matrices."""
         problem = batch_square_problem
-        solver = solver_class()
+        solver = solver_instance
 
         results = solver.batch_solve(problem["batch_matrices"])
 
