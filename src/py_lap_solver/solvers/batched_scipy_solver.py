@@ -98,6 +98,7 @@ class BatchedScipySolver(LapSolver):
                 maximize=self.maximize,
                 num_valid=num_valid_arg,
                 unassigned_value=self.unassigned_value,
+                use_openmp=self.use_openmp,
             )
         else:
             result = self._backend.solve_batched_lap_double(
@@ -105,6 +106,7 @@ class BatchedScipySolver(LapSolver):
                 maximize=self.maximize,
                 num_valid=num_valid_arg,
                 unassigned_value=self.unassigned_value,
+                use_openmp=self.use_openmp,
             )
 
         return result[0]
@@ -152,6 +154,7 @@ class BatchedScipySolver(LapSolver):
                 maximize=self.maximize,
                 num_valid=num_valid_arg,
                 unassigned_value=self.unassigned_value,
+                use_openmp=self.use_openmp,
             )
         else:
             return self._backend.solve_batched_lap_double(
@@ -159,4 +162,5 @@ class BatchedScipySolver(LapSolver):
                 maximize=self.maximize,
                 num_valid=num_valid_arg,
                 unassigned_value=self.unassigned_value,
+                use_openmp=self.use_openmp,
             )

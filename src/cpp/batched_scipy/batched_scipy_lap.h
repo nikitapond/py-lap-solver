@@ -8,7 +8,7 @@ namespace batched_scipy {
 
 /**
  * Solve a batch of linear assignment problems using the scipy algorithm
- * parallelized with OpenMP across the batch dimension.
+ * with optional OpenMP parallelization across the batch dimension.
  *
  * @param batch_size Number of problems in the batch
  * @param nr Number of rows in each cost matrix
@@ -20,6 +20,7 @@ namespace batched_scipy {
  * @param num_valid Optional array of valid dimensions for each matrix (can be nullptr)
  *                  If provided, only the first num_valid[b] rows/cols are used for matrix b
  * @param unassigned_value Value to use for unassigned rows (default: -1)
+ * @param use_openmp Whether to use OpenMP parallelization (default: true)
  * @return 0 on success, negative on error
  */
 int solve_batched_lap_double(
@@ -30,7 +31,8 @@ int solve_batched_lap_double(
     bool maximize,
     int64_t* row_assignments,
     const int64_t* num_valid = nullptr,
-    int64_t unassigned_value = -1
+    int64_t unassigned_value = -1,
+    bool use_openmp = true
 );
 
 int solve_batched_lap_float(
@@ -41,7 +43,8 @@ int solve_batched_lap_float(
     bool maximize,
     int64_t* row_assignments,
     const int64_t* num_valid = nullptr,
-    int64_t unassigned_value = -1
+    int64_t unassigned_value = -1,
+    bool use_openmp = true
 );
 
 } // namespace batched_scipy

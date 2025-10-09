@@ -1,6 +1,8 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 #include "batched_scipy_lap.h"
+#include "rectangular_lsap.h"
+#include <vector>
 
 namespace py = pybind11;
 
@@ -9,7 +11,8 @@ py::array_t<int64_t> py_solve_batched_lap_double(
     py::array_t<double, py::array::c_style | py::array::forcecast> cost_matrices,
     bool maximize,
     py::object num_valid_obj,
-    int64_t unassigned_value
+    int64_t unassigned_value,
+    bool use_openmp
 ) {
     auto buf = cost_matrices.request();
 
@@ -56,7 +59,8 @@ py::array_t<int64_t> py_solve_batched_lap_double(
         maximize,
         result_ptr,
         num_valid_ptr,
-        unassigned_value
+        unassigned_value,
+        use_openmp
     );
 
     if (status != 0) {
@@ -71,7 +75,8 @@ py::array_t<int64_t> py_solve_batched_lap_float(
     py::array_t<float, py::array::c_style | py::array::forcecast> cost_matrices,
     bool maximize,
     py::object num_valid_obj,
-    int64_t unassigned_value
+    int64_t unassigned_value,
+    bool use_openmp
 ) {
     auto buf = cost_matrices.request();
 
@@ -118,7 +123,8 @@ py::array_t<int64_t> py_solve_batched_lap_float(
         maximize,
         result_ptr,
         num_valid_ptr,
-        unassigned_value
+        unassigned_value,
+        use_openmp
     );
 
     if (status != 0) {
@@ -136,6 +142,7 @@ PYBIND11_MODULE(_batched_scipy_lap, m) {
           py::arg("maximize") = false,
           py::arg("num_valid") = py::none(),
           py::arg("unassigned_value") = -1,
+          py::arg("use_openmp") = true,
           "Solve batched LAP with double precision");
 
     m.def("solve_batched_lap_float", &py_solve_batched_lap_float,
@@ -143,6 +150,7 @@ PYBIND11_MODULE(_batched_scipy_lap, m) {
           py::arg("maximize") = false,
           py::arg("num_valid") = py::none(),
           py::arg("unassigned_value") = -1,
+          py::arg("use_openmp") = true,
           "Solve batched LAP with single precision");
 
     // Feature detection
