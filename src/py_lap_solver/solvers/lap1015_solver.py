@@ -17,12 +17,16 @@ class Lap1015Solver(LapSolver):
     unassigned_value : int, optional
         Value to use for unassigned rows/columns in the output arrays.
         Default is -1.
+    use_openmp : bool, optional
+        Whether to use OpenMP parallelization within each matrix solve.
+        Default is True. If OpenMP is not available, this is ignored.
     """
 
-    def __init__(self, maximize=False, unassigned_value=-1, **kwargs):
+    def __init__(self, maximize=False, unassigned_value=-1, use_openmp=True, **kwargs):
         super().__init__()
         self.maximize = maximize
         self.unassigned_value = unassigned_value
+        self.use_openmp = use_openmp
 
         # Try to import the C++ extension
         try:
@@ -116,14 +120,21 @@ class Lap1015Solver(LapSolver):
         # Don't use num_valid for padded rectangular matrices (padding handles it)
         num_valid_arg = -1 if was_padded else (num_valid if num_valid is not None else -1)
 
+        # Determine whether to use OpenMP (only if available)
+        use_openmp_arg = self.use_openmp and self._backend.HAS_OPENMP
+
         # Choose precision based on input dtype
         if cost_matrix.dtype == np.float32:
-            result = self._backend.solve_lap_float(cost_matrix, num_valid=num_valid_arg)
+            result = self._backend.solve_lap_float(
+                cost_matrix, num_valid=num_valid_arg, use_openmp=use_openmp_arg
+            )
         else:
             # Convert to float64 if necessary
             if cost_matrix.dtype != np.float64:
                 cost_matrix = cost_matrix.astype(np.float64)
-            result = self._backend.solve_lap_double(cost_matrix, num_valid=num_valid_arg)
+            result = self._backend.solve_lap_double(
+                cost_matrix, num_valid=num_valid_arg, use_openmp=use_openmp_arg
+            )
 
         # Trim result back to original row dimension
         if len(result) > original_n_rows:
