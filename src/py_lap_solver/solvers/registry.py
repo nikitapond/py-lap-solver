@@ -10,9 +10,9 @@ Example:
     >>> result = Solvers.Lap1015Sequential.solve_single(cost_matrix)
 """
 
-from .scipy_solver import ScipySolver
 from .batched_scipy_solver import BatchedScipySolver
 from .lap1015_solver import Lap1015Solver
+from .scipy_solver import ScipySolver
 
 
 class SolverRegistry:
@@ -54,10 +54,10 @@ class SolverRegistry:
 
         # Add all solver attributes
         for name in dir(self):
-            if name.startswith('_'):
+            if name.startswith("_"):
                 continue
             solver = getattr(self, name)
-            if solver is not None and hasattr(solver, 'solve_single'):
+            if solver is not None and hasattr(solver, "solve_single"):
                 solvers[name] = solver
 
         return solvers
@@ -71,42 +71,44 @@ class SolverRegistry:
             Dictionary mapping solver names to their availability and features.
         """
         info = {
-            'Scipy': {
-                'available': True,
-                'features': ['pure_python'],
+            "Scipy": {
+                "available": True,
+                "features": ["pure_python"],
             },
-            'ScipyMP8': {
-                'available': True,
-                'features': ['pure_python', 'batch_parallel', 'multiprocessing'],
+            "ScipyMP8": {
+                "available": True,
+                "features": ["pure_python", "batch_parallel", "multiprocessing"],
             },
-            'BatchedScipyOMP': {
-                'available': BatchedScipySolver.is_available(),
-                'has_openmp': BatchedScipySolver.has_openmp(),
-                'features': ['cpp', 'batch_parallel'] if BatchedScipySolver.has_openmp() else ['cpp'],
+            "BatchedScipyOMP": {
+                "available": BatchedScipySolver.is_available(),
+                "has_openmp": BatchedScipySolver.has_openmp(),
+                "features": (
+                    ["cpp", "batch_parallel"] if BatchedScipySolver.has_openmp() else ["cpp"]
+                ),
             },
-            'BatchedScipySequential': {
-                'available': BatchedScipySolver.is_available(),
-                'features': ['cpp'],
+            "BatchedScipySequential": {
+                "available": BatchedScipySolver.is_available(),
+                "features": ["cpp"],
             },
-            'Lap1015OMP': {
-                'available': Lap1015Solver.is_available(),
-                'has_openmp': Lap1015Solver.has_openmp(),
-                'has_cuda': Lap1015Solver.has_cuda(),
-                'features': self._get_lap1015_features(),
+            "Lap1015OMP": {
+                "available": Lap1015Solver.is_available(),
+                "has_openmp": Lap1015Solver.has_openmp(),
+                "has_cuda": Lap1015Solver.has_cuda(),
+                "features": self._get_lap1015_features(),
             },
-            'Lap1015Sequential': {
-                'available': Lap1015Solver.is_available(),
-                'has_cuda': Lap1015Solver.has_cuda(),
-                'features': ['cpp', 'optimized'] + (['cuda'] if Lap1015Solver.has_cuda() else []),
+            "Lap1015Sequential": {
+                "available": Lap1015Solver.is_available(),
+                "has_cuda": Lap1015Solver.has_cuda(),
+                "features": ["cpp", "optimized"] + (["cuda"] if Lap1015Solver.has_cuda() else []),
             },
         }
         return info
 
     def _get_lap1015_features(self):
         """Get features list for LAP1015 OpenMP solver."""
-        features = ['cpp', 'optimized', 'intra_matrix_parallel']
+        features = ["cpp", "optimized", "intra_matrix_parallel"]
         if Lap1015Solver.has_cuda():
-            features.append('cuda')
+            features.append("cuda")
         return features
 
     def print_available_solvers(self):
@@ -117,12 +119,12 @@ class SolverRegistry:
         print("-" * 60)
 
         for name, details in info.items():
-            available = details.get('available', False)
+            available = details.get("available", False)
             status = "✓" if available else "✗"
             print(f"{status} {name:25s}", end="")
 
             if available:
-                features = details.get('features', [])
+                features = details.get("features", [])
                 if features:
                     print(f" [{', '.join(features)}]")
                 else:
@@ -130,10 +132,10 @@ class SolverRegistry:
 
                 # Add feature flags
                 flags = []
-                if details.get('has_openmp'):
-                    flags.append('OpenMP')
-                if details.get('has_cuda'):
-                    flags.append('CUDA')
+                if details.get("has_openmp"):
+                    flags.append("OpenMP")
+                if details.get("has_cuda"):
+                    flags.append("CUDA")
                 if flags:
                     print(f"  {'':25s} Features: {', '.join(flags)}")
             else:

@@ -1,9 +1,9 @@
-import numpy as np
-from scipy.optimize import linear_sum_assignment
 from multiprocessing import Pool
 
-from ..base import LapSolver
+import numpy as np
+from scipy.optimize import linear_sum_assignment
 
+from ..base import LapSolver
 
 
 def solve_single(cost_matrix, unassigned_value, maximize, num_valid):
@@ -20,13 +20,13 @@ def solve_single(cost_matrix, unassigned_value, maximize, num_valid):
     maximize : bool
         If True, solve the maximization problem instead of minimization.
     num_valid : int or None
-        Number of valid rows/cols if matrix is padded. If None, uses the full matrix size.  
+        Number of valid rows/cols if matrix is padded. If None, uses the full matrix size.
     Returns
-    ------- 
+    -------
     row_to_col : np.ndarray
         Array of shape (N,) where row_to_col[i] gives the column assigned to row i.
         Unassigned rows have value `unassigned_value`.
-    
+
     """
     cost_matrix = np.asarray(cost_matrix)
     n_rows, n_cols = cost_matrix.shape
@@ -51,6 +51,7 @@ def solve_single(cost_matrix, unassigned_value, maximize, num_valid):
     row_to_col[row_ind] = col_ind
 
     return row_to_col
+
 
 class ScipySolver(LapSolver):
     """Linear Assignment Problem solver using scipy.optimize.linear_sum_assignment.
