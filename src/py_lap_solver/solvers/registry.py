@@ -21,6 +21,7 @@ class SolverRegistry:
     def __init__(self):
         # Pure Python scipy solver (always available)
         self.Scipy = ScipySolver()
+        self.ScipyMP8 = ScipySolver(use_python_mp=True, n_jobs=8)
 
         # Batched scipy solvers (with and without OpenMP)
         if BatchedScipySolver.is_available():
@@ -73,6 +74,10 @@ class SolverRegistry:
             'Scipy': {
                 'available': True,
                 'features': ['pure_python'],
+            },
+            'ScipyMP8': {
+                'available': True,
+                'features': ['pure_python', 'batch_parallel', 'multiprocessing'],
             },
             'BatchedScipyOMP': {
                 'available': BatchedScipySolver.is_available(),
