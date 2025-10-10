@@ -6,6 +6,7 @@ from get_cost_matrices import (
     get_full_rect_matrix,
     get_full_square_matrix,
     get_masked_square_matrix,
+    get_padded_square_to_rect_matrix,
 )
 from scipy.optimize import linear_sum_assignment
 
@@ -147,6 +148,31 @@ def batch_square_problem(request):
     }
 
 
+@pytest.fixture(params=[(10, 5), (20, 10), (50, 30)])
+def padded_square_to_rect_problem(request):
+    """Fixture for padded square matrices with num_valid specifying valid columns.
+
+    Tests the case where we have N predictions (rows) but only M ground truth objects
+    (columns), with M < N. The matrix is padded to (N, N) but we use num_valid=M
+    to indicate only the first M columns are valid.
+    """
+    full_size, num_valid_cols = request.param
+    cost_matrix, num_valid = get_padded_square_to_rect_matrix(full_size, num_valid_cols)
+
+    # Reference uses only the valid columns (all rows, num_valid columns)
+    valid_matrix = cost_matrix[:, :num_valid]
+    ref_row_to_col = scipy_reference(valid_matrix)
+    ref_cost = compute_assignment_cost(valid_matrix, ref_row_to_col)
+
+    return {
+        "cost_matrix": cost_matrix,
+        "ref_row_to_col": ref_row_to_col,
+        "ref_cost": ref_cost,
+        "num_valid": num_valid,
+        "full_size": full_size,
+    }
+
+
 @pytest.mark.parametrize("solver_name,solver_instance", get_all_solver_instances())
 class TestSolverConsistency:
     """Test that all solvers match scipy reference."""
@@ -222,3 +248,29 @@ class TestSolverConsistency:
             assert np.isclose(
                 cost, ref["ref_cost"], atol=1e-6
             ), f"{solver_name}: Batch {i} cost mismatch"
+
+    def test_padded_square_to_rect(
+        self, solver_name, solver_instance, padded_square_to_rect_problem
+    ):
+        """Test padded square matrices where num_valid specifies valid columns only.
+
+        This tests the case where we have N predictions (rows) but only M < N ground
+        truth objects (columns). The matrix is (N, N) but num_valid=M means we only
+        use the first M columns, resulting in a (N, M) assignment problem.
+        """
+        problem = padded_square_to_rect_problem
+        solver = solver_instance
+
+        row_to_col = solver.solve_single(problem["cost_matrix"], num_valid=problem["num_valid"])
+
+        # Compute cost on the valid rectangular portion (all rows, num_valid columns)
+        valid_matrix = problem["cost_matrix"][:, : problem["num_valid"]]
+        cost = compute_assignment_cost(valid_matrix, row_to_col)
+
+        # Check costs match
+        assert np.isclose(
+            cost, problem["ref_cost"], atol=1e-6
+        ), f"{solver_name}: Cost mismatch: {cost} vs {problem['ref_cost']}"
+
+        # Check shapes match original matrix
+        assert row_to_col.shape == (problem["full_size"],)

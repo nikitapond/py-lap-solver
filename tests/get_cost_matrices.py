@@ -142,3 +142,43 @@ def get_masked_rect_matrix(n_rows, n_cols, batch_size=None, seed=42):
         for i in range(batch_size):
             cost_matrices[i, :n_rows, :n_cols] = rng.rand(n_rows, n_cols)
         return cost_matrices, n_rows, n_cols
+
+
+def get_padded_square_to_rect_matrix(full_size, num_valid_cols, batch_size=None, seed=42):
+    """Get a padded square matrix where only first num_valid_cols columns are valid.
+
+    This simulates the scenario where a model outputs N predictions (rows) but there
+    are only M < N ground truth objects (columns). The matrix is padded to (N, N)
+    but only (N, M) is actually used.
+
+    Parameters
+    ----------
+    full_size : int
+        Full size of the square matrix (N x N).
+    num_valid_cols : int
+        Number of valid columns (M). Must be < full_size.
+    batch_size : int, optional
+        If provided, return a batch of matrices.
+        If None, return a single matrix.
+    seed : int, optional
+        Random seed for reproducibility. Default is 42.
+
+    Returns
+    -------
+    cost_matrix : np.ndarray
+        Padded square cost matrix of shape (full_size, full_size) or
+        (batch_size, full_size, full_size).
+    num_valid_cols : int
+        Number of valid columns to use.
+    """
+    rng = np.random.RandomState(seed)
+
+    if batch_size is None:
+        cost_matrix = np.full((full_size, full_size), 1000.0)
+        cost_matrix[:, :num_valid_cols] = rng.rand(full_size, num_valid_cols)
+        return cost_matrix, num_valid_cols
+    else:
+        cost_matrices = np.full((batch_size, full_size, full_size), 1000.0)
+        for i in range(batch_size):
+            cost_matrices[i, :, :num_valid_cols] = rng.rand(full_size, num_valid_cols)
+        return cost_matrices, num_valid_cols

@@ -31,9 +31,10 @@ def solve_single(cost_matrix, unassigned_value, maximize, num_valid):
     cost_matrix = np.asarray(cost_matrix)
     n_rows, n_cols = cost_matrix.shape
 
-    # Handle num_valid by slicing the matrix
+    # Handle num_valid by slicing the matrix columns (truth objects)
+    # Keep all rows (predicted objects) but only use first num_valid columns
     if num_valid is not None:
-        cost_matrix_to_solve = cost_matrix[:num_valid, :num_valid]
+        cost_matrix_to_solve = cost_matrix[:, :num_valid]
     else:
         cost_matrix_to_solve = cost_matrix
 

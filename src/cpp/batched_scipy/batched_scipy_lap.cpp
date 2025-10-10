@@ -45,7 +45,8 @@ int solve_batched_lap_impl(
 #endif
         for (int64_t b = 0; b < batch_size; b++) {
             // Get the dimensions for this problem
-            int64_t nr_valid = num_valid ? num_valid[b] : nr;
+            // num_valid only limits columns (ground truth objects), keep all rows (predictions)
+            int64_t nr_valid = nr;
             int64_t nc_valid = num_valid ? num_valid[b] : nc;
 
         // Clamp to actual dimensions
@@ -118,7 +119,8 @@ int solve_batched_lap_impl(
     } else {
         for (int64_t b = 0; b < batch_size; b++) {
             // Get the dimensions for this problem
-            int64_t nr_valid = num_valid ? num_valid[b] : nr;
+            // num_valid only limits columns (ground truth objects), keep all rows (predictions)
+            int64_t nr_valid = nr;
             int64_t nc_valid = num_valid ? num_valid[b] : nc;
 
             // Clamp to actual dimensions
