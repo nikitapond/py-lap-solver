@@ -2,8 +2,8 @@
 
 from .batched_scipy_solver import BatchedScipySolver
 from .lap1015_solver import Lap1015Solver
-from .scipy_solver import ScipySolver
 from .registry import Solvers, get_all_available_solvers, get_solver_by_name
+from .scipy_solver import ScipySolver
 
 
 def get_available_solvers():
