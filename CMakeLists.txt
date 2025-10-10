@@ -25,16 +25,6 @@ if(APPLE)
 endif()
 find_package(OpenMP)
 
-# Optional: CUDA support
-include(CheckLanguage)
-check_language(CUDA)
-if(CMAKE_CUDA_COMPILER)
-    enable_language(CUDA)
-    if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
-        set(CMAKE_CUDA_ARCHITECTURES auto)
-    endif()
-endif()
-
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -83,16 +73,24 @@ else()
     message(STATUS "LAP1015 solver: OpenMP not found - parallel support disabled")
 endif()
 
-# Enable CUDA if available
-if(CMAKE_CUDA_COMPILER)
-    target_compile_definitions(_lap1015 PRIVATE LAP_CUDA)
-    message(STATUS "LAP1015 solver: CUDA support enabled")
-else()
-    message(STATUS "LAP1015 solver: CUDA not found - GPU support disabled")
-endif()
-
 # Define LAP solver options
 target_compile_definitions(_lap1015 PRIVATE LAP_QUIET)  # Suppress debug output
 
 # Install the extension modules
 install(TARGETS _batched_scipy_lap _lap1015 LIBRARY DESTINATION py_lap_solver)
+
+# ============================================================================
+# CUDA support (commented out - uncomment to enable when needed)
+# ============================================================================
+# include(CheckLanguage)
+# check_language(CUDA)
+# if(CMAKE_CUDA_COMPILER)
+#     enable_language(CUDA)
+#     if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
+#         set(CMAKE_CUDA_ARCHITECTURES auto)
+#     endif()
+#     target_compile_definitions(_lap1015 PRIVATE LAP_CUDA)
+#     message(STATUS "LAP1015 solver: CUDA support enabled")
+# else()
+#     message(STATUS "LAP1015 solver: CUDA not found - GPU support disabled")
+# endif()
