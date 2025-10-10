@@ -45,9 +45,9 @@ int solve_batched_lap_impl(
 #endif
         for (int64_t b = 0; b < batch_size; b++) {
             // Get the dimensions for this problem
-            // num_valid only limits columns (ground truth objects), keep all rows (predictions)
-            int64_t nr_valid = nr;
-            int64_t nc_valid = num_valid ? num_valid[b] : nc;
+            // num_valid only limits rows, keep all columns
+            int64_t nr_valid = num_valid ? num_valid[b] : nr;
+            int64_t nc_valid = nc;
 
         // Clamp to actual dimensions
         nr_valid = std::min(nr_valid, nr);
@@ -119,9 +119,9 @@ int solve_batched_lap_impl(
     } else {
         for (int64_t b = 0; b < batch_size; b++) {
             // Get the dimensions for this problem
-            // num_valid only limits columns (ground truth objects), keep all rows (predictions)
-            int64_t nr_valid = nr;
-            int64_t nc_valid = num_valid ? num_valid[b] : nc;
+            // num_valid only limits rows, keep all columns
+            int64_t nr_valid = num_valid ? num_valid[b] : nr;
+            int64_t nc_valid = nc;
 
             // Clamp to actual dimensions
             nr_valid = std::min(nr_valid, nr);

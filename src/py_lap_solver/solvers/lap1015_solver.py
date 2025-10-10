@@ -95,21 +95,21 @@ class Lap1015Solver(LapSolver):
         original_n_rows, original_n_cols = cost_matrix.shape
         n_rows, n_cols = original_n_rows, original_n_cols
 
-        # If num_valid is provided, use only the first num_valid columns
-        effective_n_cols = num_valid if num_valid is not None else n_cols
+        # If num_valid is provided, use only the first num_valid rows
+        effective_n_rows = num_valid if num_valid is not None else n_rows
 
         # Pad rectangular matrices to square to avoid issues with LAP1015 solver
         was_padded = False
-        if n_rows != effective_n_cols:
-            max_dim = max(n_rows, effective_n_cols)
+        if effective_n_rows != n_cols:
+            max_dim = max(effective_n_rows, n_cols)
 
             # Create padded square matrix with large cost values
             # Use a value much larger than any in the original matrix
-            max_cost = np.max(np.abs(cost_matrix[:, :effective_n_cols]))
+            max_cost = np.max(np.abs(cost_matrix[:effective_n_rows, :]))
             padding_value = max_cost * 1000 + 1e10
 
             padded_matrix = np.full((max_dim, max_dim), padding_value, dtype=cost_matrix.dtype)
-            padded_matrix[:n_rows, :effective_n_cols] = cost_matrix[:, :effective_n_cols]
+            padded_matrix[:effective_n_rows, :n_cols] = cost_matrix[:effective_n_rows, :]
 
             cost_matrix = padded_matrix
             n_rows = n_cols = max_dim
@@ -120,7 +120,7 @@ class Lap1015Solver(LapSolver):
             cost_matrix = -cost_matrix.copy()
 
         # For padded matrices, don't pass num_valid since padding handles it
-        # Otherwise pass num_valid to C++ for column limiting
+        # Otherwise pass num_valid to C++ for row limiting
         num_valid_arg = -1 if was_padded else (num_valid if num_valid is not None else -1)
 
         # Determine whether to use OpenMP (only if available)
@@ -144,9 +144,9 @@ class Lap1015Solver(LapSolver):
             result = result[:original_n_rows]
 
         # For rectangular matrices, filter out assignments to padded columns
-        if was_padded and effective_n_cols < n_cols:
+        if was_padded and original_n_cols < n_cols:
             result = result.copy()
-            result[result >= effective_n_cols] = -1
+            result[result >= original_n_cols] = -1
 
         # Convert unassigned values if needed
         if self.unassigned_value != -1:

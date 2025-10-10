@@ -150,17 +150,17 @@ def batch_square_problem(request):
 
 @pytest.fixture(params=[(10, 5), (20, 10), (50, 30)])
 def padded_square_to_rect_problem(request):
-    """Fixture for padded square matrices with num_valid specifying valid columns.
+    """Fixture for padded square matrices with num_valid specifying valid rows.
 
-    Tests the case where we have N predictions (rows) but only M ground truth objects
-    (columns), with M < N. The matrix is padded to (N, N) but we use num_valid=M
-    to indicate only the first M columns are valid.
+    Tests the case where we have N ground truth objects (rows) but the matrix is
+    padded to (M, M) where M > N. We use num_valid=N to indicate only the first
+    N rows are valid, solving the (N, M) assignment problem.
     """
-    full_size, num_valid_cols = request.param
-    cost_matrix, num_valid = get_padded_square_to_rect_matrix(full_size, num_valid_cols)
+    full_size, num_valid_rows = request.param
+    cost_matrix, num_valid = get_padded_square_to_rect_matrix(full_size, num_valid_rows)
 
-    # Reference uses only the valid columns (all rows, num_valid columns)
-    valid_matrix = cost_matrix[:, :num_valid]
+    # Reference uses only the valid rows (num_valid rows, all columns)
+    valid_matrix = cost_matrix[:num_valid, :]
     ref_row_to_col = scipy_reference(valid_matrix)
     ref_cost = compute_assignment_cost(valid_matrix, ref_row_to_col)
 
@@ -252,20 +252,20 @@ class TestSolverConsistency:
     def test_padded_square_to_rect(
         self, solver_name, solver_instance, padded_square_to_rect_problem
     ):
-        """Test padded square matrices where num_valid specifies valid columns only.
+        """Test padded square matrices where num_valid specifies valid rows only.
 
-        This tests the case where we have N predictions (rows) but only M < N ground
-        truth objects (columns). The matrix is (N, N) but num_valid=M means we only
-        use the first M columns, resulting in a (N, M) assignment problem.
+        This tests the case where we have N ground truth objects (rows) but the matrix
+        is padded to (M, M) where M > N. num_valid=N means we only use the first N rows,
+        resulting in a (N, M) assignment problem.
         """
         problem = padded_square_to_rect_problem
         solver = solver_instance
 
         row_to_col = solver.solve_single(problem["cost_matrix"], num_valid=problem["num_valid"])
 
-        # Compute cost on the valid rectangular portion (all rows, num_valid columns)
-        valid_matrix = problem["cost_matrix"][:, : problem["num_valid"]]
-        cost = compute_assignment_cost(valid_matrix, row_to_col)
+        # Compute cost on the valid rectangular portion (num_valid rows, all columns)
+        valid_matrix = problem["cost_matrix"][: problem["num_valid"], :]
+        cost = compute_assignment_cost(valid_matrix, row_to_col[: problem["num_valid"]])
 
         # Check costs match
         assert np.isclose(

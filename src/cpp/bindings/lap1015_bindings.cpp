@@ -21,9 +21,9 @@ py::array_t<int32_t> solve_lap_float(
     int64_t n_rows = buf.shape[0];
     int64_t n_cols = buf.shape[1];
 
-    // Use num_valid for columns only (ground truth objects), keep all rows (predictions)
-    int dim_rows = n_rows;
-    int dim_cols = (num_valid > 0) ? num_valid : n_cols;
+    // Use num_valid for rows only, keep all columns
+    int dim_rows = (num_valid > 0) ? num_valid : n_rows;
+    int dim_cols = n_cols;
     int dim = std::min(dim_rows, dim_cols);
 
     float* cost_ptr = const_cast<float*>(static_cast<const float*>(buf.ptr));
@@ -96,9 +96,9 @@ py::array_t<int32_t> solve_lap_double(
     int64_t n_rows = buf.shape[0];
     int64_t n_cols = buf.shape[1];
 
-    // Use num_valid for columns only (ground truth objects), keep all rows (predictions)
-    int dim_rows = n_rows;
-    int dim_cols = (num_valid > 0) ? num_valid : n_cols;
+    // Use num_valid for rows only, keep all columns
+    int dim_rows = (num_valid > 0) ? num_valid : n_rows;
+    int dim_cols = n_cols;
     int dim = std::min(dim_rows, dim_cols);
 
     double* cost_ptr = const_cast<double*>(static_cast<const double*>(buf.ptr));

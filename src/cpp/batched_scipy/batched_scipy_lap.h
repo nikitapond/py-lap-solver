@@ -17,9 +17,9 @@ namespace batched_scipy {
  * @param maximize If true, maximize instead of minimize
  * @param row_assignments Output array for row assignments (shape: batch_size * nr)
  *                        Each element contains the column index assigned to that row
- * @param num_valid Optional array of valid column dimensions for each matrix (can be nullptr)
- *                  If provided, only the first num_valid[b] columns are used for matrix b
- *                  All rows are always used (to handle N predictions vs M < N ground truth objects)
+ * @param num_valid Optional array of valid row dimensions for each matrix (can be nullptr)
+ *                  If provided, only the first num_valid[b] rows are used for matrix b
+ *                  All columns are always used
  * @param unassigned_value Value to use for unassigned rows (default: -1)
  * @param use_openmp Whether to use OpenMP parallelization (default: true)
  * @return 0 on success, negative on error
