@@ -10,7 +10,17 @@ The Linear Assignment Problem seeks to find an optimal assignment between two se
 
 ## Installation
 
+Install from pypi
+```
+pip install py-lap-solver
+```
+
+Or install from source
+
 ```bash
+
+git clone git@github.com:nikitapond/py-lap-solver.git
+
 # Install the package in editable mode
 pip install -e .
 
