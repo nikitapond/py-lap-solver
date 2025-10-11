@@ -31,11 +31,7 @@ def solve_single(cost_matrix, unassigned_value, maximize, num_valid):
     cost_matrix = np.asarray(cost_matrix)
     n_rows, n_cols = cost_matrix.shape
 
-    # Handle num_valid by slicing rows (first dimension)
-    if num_valid is not None:
-        cost_matrix_to_solve = cost_matrix[:num_valid, :]
-    else:
-        cost_matrix_to_solve = cost_matrix
+    cost_matrix_to_solve = cost_matrix[:num_valid, :] if num_valid is not None else cost_matrix
 
     # Scipy minimizes by default, so negate for maximization
     if maximize:
