@@ -1,159 +1,135 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
-#include <vector>
-#include <cstring>
 #include "lap.h"
+#include <chrono>
 
 namespace py = pybind11;
 
-// Wrapper function for single LAP problem with float precision
-py::array_t<int32_t> solve_lap_float(
-    py::array_t<float, py::array::c_style | py::array::forcecast> cost_matrix,
-    int num_valid = -1,
-    bool use_openmp = false
-) {
-    auto buf = cost_matrix.request();
-
-    if (buf.ndim != 2) {
-        throw std::runtime_error("Cost matrix must be a 2D array");
-    }
-
-    int64_t n_rows = buf.shape[0];
-    int64_t n_cols = buf.shape[1];
-
-    // Use num_valid for rows only, keep all columns
-    int dim_rows = (num_valid > 0) ? num_valid : n_rows;
-    int dim_cols = n_cols;
-    int dim = std::min(dim_rows, dim_cols);
-
-    float* cost_ptr = const_cast<float*>(static_cast<const float*>(buf.ptr));
-
-    // Allocate output array for row assignments
-    std::vector<int> rowsol(dim);
-
 #ifdef LAP_OPENMP
-    if (use_openmp) {
-        // Create Worksharing object for work distribution
-        lap::omp::Worksharing ws(std::max(dim_rows, dim_cols), 1);
-
-        // Create TableCost wrapper for OpenMP version (requires Worksharing)
-        lap::omp::TableCost<float> costfunc(n_rows, n_cols, cost_ptr, ws);
-
-        // Create iterator with worksharing
-        lap::omp::DirectIterator<float, lap::omp::TableCost<float>> iterator(costfunc, ws);
-
-        // Solve with OpenMP parallelization
-        if (dim_rows == dim_cols) {
-            lap::omp::solve<float>(dim, costfunc, iterator, rowsol.data(), true);
-        } else {
-            lap::omp::solve<float>(dim_rows, dim_cols, costfunc, iterator, rowsol.data(), true);
-        }
-    } else
+template <class SC, class TC, class CF, class TP>
+void solveTableOMP(TP &start_time, int N1, int N2, CF &get_cost, int *rowsol, bool eps, bool sequential = false)
+{
+	lap::omp::SimpleCostFunction<TC, CF> costFunction(get_cost, sequential);
+	lap::omp::Worksharing ws(N2, 8);
+	lap::omp::TableCost<TC> costMatrix(N1, N2, costFunction, ws);
+	lap::omp::DirectIterator<SC, TC, lap::omp::TableCost<TC>> iterator(N1, N2, costMatrix, ws);
+	lap::omp::solve<SC>(N1, N2, costMatrix, iterator, rowsol, eps);
+}
 #endif
-    {
-        // Create TableCost wrapper (references existing array, doesn't copy)
-        lap::TableCost<float> costfunc(n_rows, n_cols, cost_ptr);
 
-        // Create iterator (needs reference to costfunc)
-        lap::DirectIterator<float, lap::TableCost<float>> iterator(costfunc);
+template <class SC, class TC, class CF, class TP>
+void solveTable(TP &start_time, int N1, int N2, CF &get_cost, int *rowsol, bool eps)
+{
+	lap::SimpleCostFunction<TC, CF> costFunction(get_cost);
+	lap::TableCost<TC> costMatrix(N1, N2, costFunction);
+	lap::DirectIterator<SC, TC, lap::TableCost<TC>> iterator(N1, N2, costMatrix);
+	lap::solve<SC>(N1, N2, costMatrix, iterator, rowsol, eps);
+}
 
-        // Solve the LAP (rectangular version if dims differ)
-        if (dim_rows == dim_cols) {
-            lap::solve<float>(dim, costfunc, iterator, rowsol.data(), true);
-        } else {
-            lap::solve<float>(dim_rows, dim_cols, costfunc, iterator, rowsol.data(), true);
-        }
+py::array_t<int32_t> solve_lap_float(
+    py::array_t<float> cost_matrix,
+    int num_valid = -1,
+    bool use_openmp = false,
+    bool use_epsilon = true
+) {
+    auto start_time = std::chrono::high_resolution_clock::now();
+    auto C = cost_matrix.mutable_unchecked<2>();
+
+    int ndim = C.ndim();
+    if (ndim != 2) {
+        throw std::runtime_error("The cost matrix must be 2-dimensional");
+    }
+    int Nx = C.shape(0);
+    int Ny = C.shape(1);
+
+    int dim_rows = (num_valid > 0) ? num_valid : Nx;
+    int dim_cols = Ny;
+
+    auto get_cost = [&C](int x, int y) -> float { return C(x, y); };
+
+    int *rowsol = new int[Ny];
+
+    if (use_openmp) {
+#ifdef LAP_OPENMP
+        solveTableOMP<float, float>(start_time, dim_rows, dim_cols, get_cost, rowsol, use_epsilon);
+#else
+        throw std::runtime_error("OpenMP not enabled");
+#endif
+    }
+    else {
+        solveTable<float, float>(start_time, dim_rows, dim_cols, get_cost, rowsol, use_epsilon);
     }
 
-    // Convert to output format (row_to_col mapping for all rows)
-    auto result = py::array_t<int32_t>(n_rows);
-    auto result_buf = result.request();
-    int32_t* result_ptr = static_cast<int32_t*>(result_buf.ptr);
-
-    // Initialize all to -1 (unassigned)
-    std::fill(result_ptr, result_ptr + n_rows, -1);
-
-    // Fill in the assignments from the solver
-    for (int i = 0; i < dim; i++) {
-        result_ptr[i] = rowsol[i];
+    py::array_t<int32_t, py::array::c_style> result(Nx);
+    auto r = result.mutable_unchecked<1>();
+    for (py::ssize_t i = 0; i < Nx; i++) {
+        r(i) = (i < dim_rows) ? rowsol[i] : -1;
     }
 
+    delete[] rowsol;
     return result;
 }
 
-// Wrapper function for single LAP problem with double precision
 py::array_t<int32_t> solve_lap_double(
-    py::array_t<double, py::array::c_style | py::array::forcecast> cost_matrix,
+    py::array_t<double> cost_matrix,
     int num_valid = -1,
-    bool use_openmp = false
+    bool use_openmp = false,
+    bool use_epsilon = true
 ) {
-    auto buf = cost_matrix.request();
+    auto start_time = std::chrono::high_resolution_clock::now();
+    auto C = cost_matrix.mutable_unchecked<2>();
 
-    if (buf.ndim != 2) {
-        throw std::runtime_error("Cost matrix must be a 2D array");
+    int ndim = C.ndim();
+    if (ndim != 2) {
+        throw std::runtime_error("The cost matrix must be 2-dimensional");
     }
+    int Nx = C.shape(0);
+    int Ny = C.shape(1);
 
-    int64_t n_rows = buf.shape[0];
-    int64_t n_cols = buf.shape[1];
+    int dim_rows = (num_valid > 0) ? num_valid : Nx;
+    int dim_cols = Ny;
 
-    // Use num_valid for rows only, keep all columns
-    int dim_rows = (num_valid > 0) ? num_valid : n_rows;
-    int dim_cols = n_cols;
-    int dim = std::min(dim_rows, dim_cols);
+    auto get_cost = [&C](int x, int y) -> double { return C(x, y); };
 
-    double* cost_ptr = const_cast<double*>(static_cast<const double*>(buf.ptr));
+    int *rowsol = new int[Ny];
 
-    // Allocate output array for row assignments
-    std::vector<int> rowsol(dim);
-
-#ifdef LAP_OPENMP
     if (use_openmp) {
-        // Create Worksharing object for work distribution
-        lap::omp::Worksharing ws(std::max(dim_rows, dim_cols), 1);
-
-        // Create TableCost wrapper for OpenMP version (requires Worksharing)
-        lap::omp::TableCost<double> costfunc(n_rows, n_cols, cost_ptr, ws);
-
-        // Create iterator with worksharing
-        lap::omp::DirectIterator<double, lap::omp::TableCost<double>> iterator(costfunc, ws);
-
-        // Solve with OpenMP parallelization
-        if (dim_rows == dim_cols) {
-            lap::omp::solve<double>(dim, costfunc, iterator, rowsol.data(), true);
-        } else {
-            lap::omp::solve<double>(dim_rows, dim_cols, costfunc, iterator, rowsol.data(), true);
-        }
-    } else
+#ifdef LAP_OPENMP
+        solveTableOMP<double, double>(start_time, dim_rows, dim_cols, get_cost, rowsol, use_epsilon);
+#else
+        throw std::runtime_error("OpenMP not enabled");
 #endif
-    {
-        // Create TableCost wrapper (references existing array, doesn't copy)
-        lap::TableCost<double> costfunc(n_rows, n_cols, cost_ptr);
-
-        // Create iterator (needs reference to costfunc)
-        lap::DirectIterator<double, lap::TableCost<double>> iterator(costfunc);
-
-        // Solve the LAP (rectangular version if dims differ)
-        if (dim_rows == dim_cols) {
-            lap::solve<double>(dim, costfunc, iterator, rowsol.data(), true);
-        } else {
-            lap::solve<double>(dim_rows, dim_cols, costfunc, iterator, rowsol.data(), true);
-        }
+    }
+    else {
+        solveTable<double, double>(start_time, dim_rows, dim_cols, get_cost, rowsol, use_epsilon);
     }
 
-    // Convert to output format (row_to_col mapping for all rows)
-    auto result = py::array_t<int32_t>(n_rows);
-    auto result_buf = result.request();
-    int32_t* result_ptr = static_cast<int32_t*>(result_buf.ptr);
-
-    // Initialize all to -1 (unassigned)
-    std::fill(result_ptr, result_ptr + n_rows, -1);
-
-    // Fill in the assignments from the solver
-    for (int i = 0; i < dim; i++) {
-        result_ptr[i] = rowsol[i];
+    py::array_t<int32_t, py::array::c_style> result(Nx);
+    auto r = result.mutable_unchecked<1>();
+    for (py::ssize_t i = 0; i < Nx; i++) {
+        r(i) = (i < dim_rows) ? rowsol[i] : -1;
     }
 
+    delete[] rowsol;
     return result;
+}
+
+py::array_t<int32_t> solve_lap_lambda_float(
+    py::array_t<float> cost_matrix,
+    int num_valid = -1,
+    bool use_openmp = false,
+    bool use_epsilon = true
+) {
+    return solve_lap_float(cost_matrix, num_valid, use_openmp, use_epsilon);
+}
+
+py::array_t<int32_t> solve_lap_lambda_double(
+    py::array_t<double> cost_matrix,
+    int num_valid = -1,
+    bool use_openmp = false,
+    bool use_epsilon = true
+) {
+    return solve_lap_double(cost_matrix, num_valid, use_openmp, use_epsilon);
 }
 
 PYBIND11_MODULE(_lap1015, m) {
@@ -163,15 +139,30 @@ PYBIND11_MODULE(_lap1015, m) {
           py::arg("cost_matrix"),
           py::arg("num_valid") = -1,
           py::arg("use_openmp") = false,
+          py::arg("use_epsilon") = true,
           "Solve LAP with single precision (float32)");
 
     m.def("solve_lap_double", &solve_lap_double,
           py::arg("cost_matrix"),
           py::arg("num_valid") = -1,
           py::arg("use_openmp") = false,
+          py::arg("use_epsilon") = true,
           "Solve LAP with double precision (float64)");
 
-    // Feature detection flags
+    m.def("solve_lap_lambda_float", &solve_lap_lambda_float,
+          py::arg("cost_matrix"),
+          py::arg("num_valid") = -1,
+          py::arg("use_openmp") = false,
+          py::arg("use_epsilon") = true,
+          "Solve LAP with single precision (float32) using lambda-based cost function");
+
+    m.def("solve_lap_lambda_double", &solve_lap_lambda_double,
+          py::arg("cost_matrix"),
+          py::arg("num_valid") = -1,
+          py::arg("use_openmp") = false,
+          py::arg("use_epsilon") = true,
+          "Solve LAP with double precision (float64) using lambda-based cost function");
+
     #ifdef LAP_OPENMP
     m.attr("HAS_OPENMP") = true;
     #else

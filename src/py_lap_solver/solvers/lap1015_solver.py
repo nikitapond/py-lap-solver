@@ -20,13 +20,32 @@ class Lap1015Solver(LapSolver):
     use_openmp : bool, optional
         Whether to use OpenMP parallelization within each matrix solve.
         Default is True. If OpenMP is not available, this is ignored.
+    use_epsilon : bool, optional
+        Whether to use epsilon scaling (early stopping parameter).
+        When True (default), the algorithm estimates an initial epsilon value
+        which can improve performance for some cost structures. When False,
+        skips epsilon estimation which may be faster for certain problems.
+        Default is True.
+    use_lambda : bool, optional
+        Whether to use lambda-based cost function (SimpleCostFunction wrapper).
+        May be faster due to lambda inlining. Default is False.
     """
 
-    def __init__(self, maximize=False, unassigned_value=-1, use_openmp=True, **kwargs):
+    def __init__(
+        self,
+        maximize=False,
+        unassigned_value=-1,
+        use_openmp=True,
+        use_epsilon=True,
+        use_lambda=False,
+        **kwargs
+    ):
         super().__init__()
         self.maximize = maximize
         self.unassigned_value = unassigned_value
         self.use_openmp = use_openmp
+        self.use_epsilon = use_epsilon
+        self.use_lambda = use_lambda
 
         # Try to import the C++ extension
         try:
@@ -92,61 +111,67 @@ class Lap1015Solver(LapSolver):
             )
 
         cost_matrix = np.asarray(cost_matrix)
-        original_n_rows, original_n_cols = cost_matrix.shape
-        n_rows, n_cols = original_n_rows, original_n_cols
+        n_rows, n_cols = cost_matrix.shape
 
-        # If num_valid is provided, use only the first num_valid rows
-        effective_n_rows = num_valid if num_valid is not None else n_rows
-
-        # Pad rectangular matrices to square to avoid issues with LAP1015 solver
-        was_padded = False
-        if effective_n_rows != n_cols:
-            max_dim = max(effective_n_rows, n_cols)
-
-            # Create padded square matrix with large cost values
-            # Use a value much larger than any in the original matrix
-            max_cost = np.max(np.abs(cost_matrix[:effective_n_rows, :]))
-            padding_value = max_cost * 1000 + 1e10
-
-            padded_matrix = np.full((max_dim, max_dim), padding_value, dtype=cost_matrix.dtype)
-            padded_matrix[:effective_n_rows, :n_cols] = cost_matrix[:effective_n_rows, :]
-
-            cost_matrix = padded_matrix
-            n_rows = n_cols = max_dim
-            was_padded = True
+        # Transpose if more rows than columns (bindings expect rows <= cols)
+        transposed = False
+        if n_rows > n_cols:
+            cost_matrix = cost_matrix.T
+            transposed = True
 
         # Handle maximization by negating costs
         if self.maximize:
             cost_matrix = -cost_matrix.copy()
 
-        # For padded matrices, don't pass num_valid since padding handles it
-        # Otherwise pass num_valid to C++ for row limiting
-        num_valid_arg = -1 if was_padded else (num_valid if num_valid is not None else -1)
+        # Pass num_valid to C++ if provided, otherwise -1 to use full matrix
+        num_valid_arg = num_valid if num_valid is not None else -1
 
         # Determine whether to use OpenMP (only if available)
         use_openmp_arg = self.use_openmp and self._backend.HAS_OPENMP
 
         # Choose precision based on input dtype
         if cost_matrix.dtype == np.float32:
-            result = self._backend.solve_lap_float(
-                cost_matrix, num_valid=num_valid_arg, use_openmp=use_openmp_arg
-            )
+            if self.use_lambda:
+                result = self._backend.solve_lap_lambda_float(
+                    cost_matrix,
+                    num_valid=num_valid_arg,
+                    use_openmp=use_openmp_arg,
+                    use_epsilon=self.use_epsilon,
+                )
+            else:
+                result = self._backend.solve_lap_float(
+                    cost_matrix,
+                    num_valid=num_valid_arg,
+                    use_openmp=use_openmp_arg,
+                    use_epsilon=self.use_epsilon,
+                )
         else:
             # Convert to float64 if necessary
             if cost_matrix.dtype != np.float64:
                 cost_matrix = cost_matrix.astype(np.float64)
-            result = self._backend.solve_lap_double(
-                cost_matrix, num_valid=num_valid_arg, use_openmp=use_openmp_arg
-            )
+            if self.use_lambda:
+                result = self._backend.solve_lap_lambda_double(
+                    cost_matrix,
+                    num_valid=num_valid_arg,
+                    use_openmp=use_openmp_arg,
+                    use_epsilon=self.use_epsilon,
+                )
+            else:
+                result = self._backend.solve_lap_double(
+                    cost_matrix,
+                    num_valid=num_valid_arg,
+                    use_openmp=use_openmp_arg,
+                    use_epsilon=self.use_epsilon,
+                )
 
-        # Trim result back to original row dimension
-        if len(result) > original_n_rows:
-            result = result[:original_n_rows]
-
-        # For rectangular matrices, filter out assignments to padded columns
-        if was_padded and original_n_cols < n_cols:
-            result = result.copy()
-            result[result >= original_n_cols] = -1
+        # If we transposed, convert col_to_row back to row_to_col
+        if transposed:
+            # Result is col_to_row mapping, convert to row_to_col
+            col_to_row = result
+            result = np.full(n_rows, -1, dtype=np.int32)
+            for col_idx, row_idx in enumerate(col_to_row):
+                if row_idx >= 0 and row_idx < n_rows:
+                    result[row_idx] = col_idx
 
         # Convert unassigned values if needed
         if self.unassigned_value != -1:
