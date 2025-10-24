@@ -38,7 +38,7 @@ class Lap1015Solver(LapSolver):
         use_openmp=True,
         use_epsilon=True,
         use_lambda=False,
-        **kwargs
+        **kwargs,
     ):
         super().__init__()
         self.maximize = maximize
