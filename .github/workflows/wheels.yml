@@ -99,8 +99,8 @@ jobs:
           CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=4
 
           # Test the wheels
-          CIBW_TEST_REQUIRES: pytest numpy
-          CIBW_TEST_COMMAND: pytest -v
+          CIBW_TEST_REQUIRES: pytest numpy scipy
+          CIBW_TEST_COMMAND: pytest {project}/tests -v
 
       - uses: actions/upload-artifact@v4
         with:

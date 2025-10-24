@@ -4,4 +4,16 @@ from . import solvers
 from .base import LapSolver
 
 
-__all__ = ["LapSolver", "solvers"]
+try:
+    from importlib.metadata import PackageNotFoundError, version
+except ImportError:
+    # Python < 3.8
+    from importlib_metadata import PackageNotFoundError, version
+
+try:
+    __version__ = version("py-lap-solver")
+except PackageNotFoundError:
+    # Package not installed
+    __version__ = "unknown"
+
+__all__ = ["LapSolver", "solvers", "__version__"]
