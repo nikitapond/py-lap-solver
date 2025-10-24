@@ -46,17 +46,27 @@ pybind11_add_module(_lap1015
 
 # Compiler flags for optimization
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    # Use -mcpu=native on ARM (Apple Silicon), -march=native on x86
+    # Base optimization flags
+    set(BASE_FLAGS -O3 -fstrict-aliasing -flto)
+
+    # Architecture-specific flags
+    # When building wheels with cibuildwheel, builds run on native hardware for each arch
+    # so -march=native is safe and optimal
     if (CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64|ARM64")
-        target_compile_options(_batched_scipy_lap PRIVATE -O3 -mcpu=native -fstrict-aliasing)
-        target_compile_options(_lap1015 PRIVATE -O3 -mcpu=native -fstrict-aliasing)
-    else()
-        target_compile_options(_batched_scipy_lap PRIVATE -O3 -march=native -fstrict-aliasing)
-        target_compile_options(_lap1015 PRIVATE -O3 -march=native -fstrict-aliasing)
+        set(ARCH_FLAGS -mcpu=native)
+    elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
+        set(ARCH_FLAGS -march=native -m64 -mfpmath=sse)
     endif()
+
+    target_compile_options(_batched_scipy_lap PRIVATE ${BASE_FLAGS} ${ARCH_FLAGS})
+    target_compile_options(_lap1015 PRIVATE ${BASE_FLAGS} ${ARCH_FLAGS})
+    target_link_options(_batched_scipy_lap PRIVATE -flto)
+    target_link_options(_lap1015 PRIVATE -flto)
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    target_compile_options(_batched_scipy_lap PRIVATE /O2 /Wall)
-    target_compile_options(_lap1015 PRIVATE /O2 /Wall)
+    target_compile_options(_batched_scipy_lap PRIVATE /O2 /GL)
+    target_compile_options(_lap1015 PRIVATE /O2 /GL)
+    target_link_options(_batched_scipy_lap PRIVATE /LTCG)
+    target_link_options(_lap1015 PRIVATE /LTCG)
 endif()
 
 # Enable OpenMP if available
