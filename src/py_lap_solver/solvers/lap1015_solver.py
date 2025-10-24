@@ -105,18 +105,13 @@ class Lap1015Solver(LapSolver):
         num_valid_arg = num_valid if num_valid is not None else -1
         use_openmp_arg = self.use_openmp and self._backend.HAS_OPENMP
 
-        # Call C++ backend - returns assignments for first N rows
-        col_ind = self._backend.solve_lap_float(
+        # Call C++ backend - returns full solution including unassigned columns
+        result = self._backend.solve_lap_float(
             cost_matrix,
             num_valid=num_valid_arg,
             use_openmp=use_openmp_arg,
             use_epsilon=self.use_epsilon,
         )
-
-        # Append unassigned columns to match Scipy's format
-        all_cols = np.arange(n_cols, dtype=np.int32)
-        unassigned_cols = all_cols[~np.isin(all_cols, col_ind)]
-        result = np.concatenate([col_ind, unassigned_cols])
 
         return result
 

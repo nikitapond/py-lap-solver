@@ -60,9 +60,9 @@ py::array_t<int32_t> solve_lap_float(
         solveTable<float, float>(start_time, dim_rows, dim_cols, get_cost, rowsol, use_epsilon);
     }
 
-    py::array_t<int32_t, py::array::c_style> result(Nx);
+    py::array_t<int32_t, py::array::c_style> result(Ny);
     auto r = result.mutable_unchecked<1>();
-    for (py::ssize_t i = 0; i < Nx; i++) {
+    for (py::ssize_t i = 0; i < Ny; i++) {
         r(i) = rowsol[i];
     }
 
@@ -104,9 +104,9 @@ py::array_t<int32_t> solve_lap_double(
         solveTable<double, double>(start_time, dim_rows, dim_cols, get_cost, rowsol, use_epsilon);
     }
 
-    py::array_t<int32_t, py::array::c_style> result(Nx);
+    py::array_t<int32_t, py::array::c_style> result(Ny);
     auto r = result.mutable_unchecked<1>();
-    for (py::ssize_t i = 0; i < Nx; i++) {
+    for (py::ssize_t i = 0; i < Ny; i++) {
         r(i) = rowsol[i];
     }
 
