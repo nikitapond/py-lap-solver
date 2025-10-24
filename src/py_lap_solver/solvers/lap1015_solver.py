@@ -6,46 +6,26 @@ from ..base import LapSolver
 class Lap1015Solver(LapSolver):
     """Linear Assignment Problem solver using Algorithm 1015.
 
-    This solver uses the LAP1015 implementation, which is a highly optimized
-    shortest augmenting path algorithm. It supports both single and batch solving.
+    Minimal wrapper matching hepattn's implementation for maximum performance.
+    Expects cost matrices where rows <= cols.
 
     Parameters
     ----------
-    maximize : bool, optional
-        If True, solve the maximization problem instead of minimization.
-        Default is False (minimization).
-    unassigned_value : int, optional
-        Value to use for unassigned rows/columns in the output arrays.
-        Default is -1.
     use_openmp : bool, optional
-        Whether to use OpenMP parallelization within each matrix solve.
-        Default is True. If OpenMP is not available, this is ignored.
+        Whether to use OpenMP parallelization. Default is False.
     use_epsilon : bool, optional
-        Whether to use epsilon scaling (early stopping parameter).
-        When True (default), the algorithm estimates an initial epsilon value
-        which can improve performance for some cost structures. When False,
-        skips epsilon estimation which may be faster for certain problems.
-        Default is True.
-    use_lambda : bool, optional
-        Whether to use lambda-based cost function (SimpleCostFunction wrapper).
-        May be faster due to lambda inlining. Default is False.
+        Whether to use epsilon scaling. Default is True.
     """
 
     def __init__(
         self,
-        maximize=False,
-        unassigned_value=-1,
-        use_openmp=True,
+        use_openmp=False,
         use_epsilon=True,
-        use_lambda=False,
         **kwargs,
     ):
         super().__init__()
-        self.maximize = maximize
-        self.unassigned_value = unassigned_value
         self.use_openmp = use_openmp
         self.use_epsilon = use_epsilon
-        self.use_lambda = use_lambda
 
         # Try to import the C++ extension
         try:
@@ -93,16 +73,15 @@ class Lap1015Solver(LapSolver):
         Parameters
         ----------
         cost_matrix : np.ndarray
-            Cost matrix of shape (N, M).
+            Cost matrix of shape (N, M) where N <= M.
         num_valid : int, optional
-            Number of valid rows/cols if matrix is padded.
-            If None, uses the full matrix size.
+            Number of valid rows if matrix is padded.
 
         Returns
         -------
-        row_to_col : np.ndarray
-            Array of shape (N,) where row_to_col[i] gives the column assigned to row i.
-            Unassigned rows have value `unassigned_value`.
+        result : np.ndarray
+            Array of shape (M,) with column assignments for each row,
+            followed by unassigned columns.
         """
         if not self._available:
             raise RuntimeError(
@@ -113,92 +92,48 @@ class Lap1015Solver(LapSolver):
         cost_matrix = np.asarray(cost_matrix)
         n_rows, n_cols = cost_matrix.shape
 
-        # Transpose if more rows than columns (bindings expect rows <= cols)
-        transposed = False
         if n_rows > n_cols:
-            cost_matrix = cost_matrix.T
-            transposed = True
+            raise ValueError(
+                f"Cost matrix must have rows <= cols, got {n_rows}x{n_cols}. "
+                "Transpose your matrix before calling this solver."
+            )
 
-        # Handle maximization by negating costs
-        if self.maximize:
-            cost_matrix = -cost_matrix.copy()
+        # Convert to float32 if needed (lap1015 uses float32)
+        if cost_matrix.dtype != np.float32:
+            cost_matrix = cost_matrix.astype(np.float32)
 
-        # Pass num_valid to C++ if provided, otherwise -1 to use full matrix
         num_valid_arg = num_valid if num_valid is not None else -1
-
-        # Determine whether to use OpenMP (only if available)
         use_openmp_arg = self.use_openmp and self._backend.HAS_OPENMP
 
-        # Choose precision based on input dtype
-        if cost_matrix.dtype == np.float32:
-            if self.use_lambda:
-                result = self._backend.solve_lap_lambda_float(
-                    cost_matrix,
-                    num_valid=num_valid_arg,
-                    use_openmp=use_openmp_arg,
-                    use_epsilon=self.use_epsilon,
-                )
-            else:
-                result = self._backend.solve_lap_float(
-                    cost_matrix,
-                    num_valid=num_valid_arg,
-                    use_openmp=use_openmp_arg,
-                    use_epsilon=self.use_epsilon,
-                )
-        else:
-            # Convert to float64 if necessary
-            if cost_matrix.dtype != np.float64:
-                cost_matrix = cost_matrix.astype(np.float64)
-            if self.use_lambda:
-                result = self._backend.solve_lap_lambda_double(
-                    cost_matrix,
-                    num_valid=num_valid_arg,
-                    use_openmp=use_openmp_arg,
-                    use_epsilon=self.use_epsilon,
-                )
-            else:
-                result = self._backend.solve_lap_double(
-                    cost_matrix,
-                    num_valid=num_valid_arg,
-                    use_openmp=use_openmp_arg,
-                    use_epsilon=self.use_epsilon,
-                )
+        # Call C++ backend - returns assignments for first N rows
+        col_ind = self._backend.solve_lap_float(
+            cost_matrix,
+            num_valid=num_valid_arg,
+            use_openmp=use_openmp_arg,
+            use_epsilon=self.use_epsilon,
+        )
 
-        # If we transposed, convert col_to_row back to row_to_col
-        if transposed:
-            # Result is col_to_row mapping, convert to row_to_col
-            col_to_row = result
-            result = np.full(n_rows, -1, dtype=np.int32)
-            for col_idx, row_idx in enumerate(col_to_row):
-                if row_idx >= 0 and row_idx < n_rows:
-                    result[row_idx] = col_idx
-
-        # Convert unassigned values if needed
-        if self.unassigned_value != -1:
-            result = result.copy()
-            result[result == -1] = self.unassigned_value
+        # Append unassigned columns to match Scipy's format
+        all_cols = np.arange(n_cols, dtype=np.int32)
+        unassigned_cols = all_cols[~np.isin(all_cols, col_ind)]
+        result = np.concatenate([col_ind, unassigned_cols])
 
         return result
 
     def batch_solve(self, batch_cost_matrices, num_valid=None):
-        """Solve multiple linear assignment problems.
-
-        Note: Currently solves sequentially. For parallel batch solving,
-        use BatchedScipySolver.
+        """Solve multiple linear assignment problems sequentially.
 
         Parameters
         ----------
         batch_cost_matrices : np.ndarray
-            Batch of cost matrices of shape (B, N, M).
+            Batch of cost matrices of shape (B, N, M) where N <= M.
         num_valid : np.ndarray or int, optional
-            Number of valid rows/cols for each matrix.
-            Can be a scalar (same for all) or array of shape (B,).
+            Number of valid rows for each matrix.
 
         Returns
         -------
         np.ndarray
-            Array of shape (B, N) where element [b, i] gives the column assigned
-            to row i in batch element b. Unassigned rows have value `unassigned_value`.
+            Array of shape (B, M) with column assignments for each problem.
         """
         if not self._available:
             raise RuntimeError(
@@ -213,6 +148,12 @@ class Lap1015Solver(LapSolver):
 
         batch_size, n_rows, n_cols = batch_cost_matrices.shape
 
+        if n_rows > n_cols:
+            raise ValueError(
+                f"Cost matrices must have rows <= cols, got {n_rows}x{n_cols}. "
+                "Transpose your matrices before calling this solver."
+            )
+
         # Handle num_valid parameter
         if num_valid is None:
             num_valid_array = [None] * batch_size
@@ -222,7 +163,7 @@ class Lap1015Solver(LapSolver):
             num_valid_array = num_valid
 
         # Preallocate output array
-        results = np.full((batch_size, n_rows), self.unassigned_value, dtype=np.int32)
+        results = np.empty((batch_size, n_cols), dtype=np.int32)
 
         # Solve each problem sequentially
         for i in range(batch_size):

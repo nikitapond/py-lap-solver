@@ -23,10 +23,9 @@ class BatchedScipySolver(LapSolver):
         If OpenMP is not available, this is ignored.
     """
 
-    def __init__(self, maximize=False, unassigned_value=-1, use_openmp=True, **kwargs):
+    def __init__(self, maximize=False, use_openmp=True, **kwargs):
         super().__init__()
         self.maximize = maximize
-        self.unassigned_value = unassigned_value
         self.use_openmp = use_openmp
 
         # Try to import the C++ extension
@@ -68,16 +67,15 @@ class BatchedScipySolver(LapSolver):
         Parameters
         ----------
         cost_matrix : np.ndarray
-            Cost matrix of shape (N, M).
+            Cost matrix of shape (N, M) where N <= M.
         num_valid : int, optional
-            Number of valid rows/cols if matrix is padded.
+            Number of valid rows if matrix is padded.
             If None, uses the full matrix size.
 
         Returns
         -------
-        row_to_col : np.ndarray
-            Array of shape (N,) where row_to_col[i] gives the column assigned to row i.
-            Unassigned rows have value `unassigned_value`.
+        result : np.ndarray
+            Array of shape (M,) with column assignments.
         """
         if not self._available:
             raise RuntimeError(
@@ -87,29 +85,35 @@ class BatchedScipySolver(LapSolver):
 
         # Convert single problem to batch of size 1
         cost_matrix = np.asarray(cost_matrix)
+        n_cols = cost_matrix.shape[1]
         batch_cost = cost_matrix[np.newaxis, :, :]
 
         num_valid_arg = None if num_valid is None else num_valid
 
         # Choose precision based on input dtype
         if cost_matrix.dtype == np.float32:
-            result = self._backend.solve_batched_lap_float(
+            col_ind = self._backend.solve_batched_lap_float(
                 batch_cost,
                 maximize=self.maximize,
                 num_valid=num_valid_arg,
-                unassigned_value=self.unassigned_value,
+                unassigned_value=-1,
                 use_openmp=self.use_openmp,
-            )
+            )[0]
         else:
-            result = self._backend.solve_batched_lap_double(
+            col_ind = self._backend.solve_batched_lap_double(
                 batch_cost,
                 maximize=self.maximize,
                 num_valid=num_valid_arg,
-                unassigned_value=self.unassigned_value,
+                unassigned_value=-1,
                 use_openmp=self.use_openmp,
-            )
+            )[0]
 
-        return result[0]
+        # Append unassigned columns
+        all_cols = np.arange(n_cols, dtype=np.int32)
+        unassigned_cols = all_cols[~np.isin(all_cols, col_ind[col_ind >= 0])]
+        result = np.concatenate([col_ind[col_ind >= 0], unassigned_cols])
+
+        return result
 
     def batch_solve(self, batch_cost_matrices, num_valid=None):
         """Solve multiple linear assignment problems with OpenMP parallelization.
@@ -117,16 +121,15 @@ class BatchedScipySolver(LapSolver):
         Parameters
         ----------
         batch_cost_matrices : np.ndarray
-            Batch of cost matrices of shape (B, N, M).
+            Batch of cost matrices of shape (B, N, M) where N <= M.
         num_valid : np.ndarray or int, optional
-            Number of valid rows/cols for each matrix.
+            Number of valid rows for each matrix.
             Can be a scalar (same for all) or array of shape (B,).
 
         Returns
         -------
         np.ndarray
-            Array of shape (B, N) where element [b, i] gives the column assigned
-            to row i in batch element b. Unassigned rows have value `unassigned_value`.
+            Array of shape (B, M) with column assignments for each problem.
         """
         if not self._available:
             raise RuntimeError(
@@ -139,6 +142,8 @@ class BatchedScipySolver(LapSolver):
         if batch_cost_matrices.ndim != 3:
             raise ValueError("batch_cost_matrices must be 3D array (B, N, M)")
 
+        batch_size, n_rows, n_cols = batch_cost_matrices.shape
+
         # Handle num_valid parameter
         num_valid_arg = None
         if num_valid is not None:
@@ -149,18 +154,30 @@ class BatchedScipySolver(LapSolver):
 
         # Choose precision based on input dtype
         if batch_cost_matrices.dtype == np.float32:
-            return self._backend.solve_batched_lap_float(
+            batch_col_ind = self._backend.solve_batched_lap_float(
                 batch_cost_matrices,
                 maximize=self.maximize,
                 num_valid=num_valid_arg,
-                unassigned_value=self.unassigned_value,
+                unassigned_value=-1,
                 use_openmp=self.use_openmp,
             )
         else:
-            return self._backend.solve_batched_lap_double(
+            batch_col_ind = self._backend.solve_batched_lap_double(
                 batch_cost_matrices,
                 maximize=self.maximize,
                 num_valid=num_valid_arg,
-                unassigned_value=self.unassigned_value,
+                unassigned_value=-1,
                 use_openmp=self.use_openmp,
             )
+
+        # Append unassigned columns for each problem
+        results = np.empty((batch_size, n_cols), dtype=np.int32)
+        all_cols = np.arange(n_cols, dtype=np.int32)
+
+        for i in range(batch_size):
+            col_ind = batch_col_ind[i]
+            valid_assignments = col_ind[col_ind >= 0]
+            unassigned_cols = all_cols[~np.isin(all_cols, valid_assignments)]
+            results[i] = np.concatenate([valid_assignments, unassigned_cols])
+
+        return results

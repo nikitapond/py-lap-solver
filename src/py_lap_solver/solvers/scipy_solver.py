@@ -6,7 +6,7 @@ from scipy.optimize import linear_sum_assignment
 from ..base import LapSolver
 
 
-def solve_single(cost_matrix, unassigned_value, maximize, num_valid):
+def solve_single(cost_matrix, maximize, num_valid):
     """Helper function to solve a single LAP instance.
 
     This is defined outside the class to facilitate multiprocessing.
@@ -14,22 +14,20 @@ def solve_single(cost_matrix, unassigned_value, maximize, num_valid):
     Parameters
     ----------
     cost_matrix : np.ndarray
-        Cost matrix of shape (N, M).
-    unassigned_value : int
-        Value to use for unassigned rows/columns in the output arrays.
+        Cost matrix of shape (N, M) where N <= M.
     maximize : bool
         If True, solve the maximization problem instead of minimization.
     num_valid : int or None
         Number of valid rows if matrix is padded. If None, uses the full matrix row size.
+
     Returns
     -------
-    row_to_col : np.ndarray
-        Array of shape (N,) where row_to_col[i] gives the column assigned to row i.
-        Unassigned rows have value `unassigned_value`.
-
+    result : np.ndarray
+        Array of column assignments. For rectangular matrices (N < M),
+        unassigned columns are appended at the end.
     """
     cost_matrix = np.asarray(cost_matrix)
-    n_rows, n_cols = cost_matrix.shape
+    n_cols = cost_matrix.shape[1]
 
     cost_matrix_to_solve = cost_matrix[:num_valid, :] if num_valid is not None else cost_matrix
 
@@ -38,31 +36,26 @@ def solve_single(cost_matrix, unassigned_value, maximize, num_valid):
         cost_matrix_to_solve = -cost_matrix_to_solve
 
     # Scipy returns (row_ind, col_ind) pairs
-    row_ind, col_ind = linear_sum_assignment(cost_matrix_to_solve)
+    _, col_ind = linear_sum_assignment(cost_matrix_to_solve)
 
-    # Convert to full-size array matching input row dimension
-    row_to_col = np.full(n_rows, unassigned_value, dtype=np.int32)
+    # Concatenate assigned columns + unassigned columns
+    all_cols = np.arange(n_cols, dtype=np.int32)
+    unassigned_cols = all_cols[~np.isin(all_cols, col_ind)]
+    result = np.concatenate([col_ind, unassigned_cols])
 
-    # Fill in the assignments
-    row_to_col[row_ind] = col_ind
-
-    return row_to_col
+    return result
 
 
 class ScipySolver(LapSolver):
     """Linear Assignment Problem solver using scipy.optimize.linear_sum_assignment.
 
-    This solver uses the Hungarian algorithm implementation from scipy.
-    It's reliable and well-tested, suitable for small to medium-sized problems.
+    Uses the Hungarian algorithm implementation from scipy.
 
     Parameters
     ----------
     maximize : bool, optional
         If True, solve the maximization problem instead of minimization.
         Default is False (minimization).
-    unassigned_value : int, optional
-        Value to use for unassigned rows/columns in the output arrays.
-        Default is -1.
     use_python_mp : bool, optional
         Whether to use Python multiprocessing for batch solving. Default is False.
     n_jobs : int, optional
@@ -71,11 +64,10 @@ class ScipySolver(LapSolver):
     """
 
     def __init__(
-        self, maximize=False, unassigned_value=-1, use_python_mp=False, n_jobs=8, **kwargs
+        self, maximize=False, use_python_mp=False, n_jobs=8, **kwargs
     ):
         super().__init__()
         self.maximize = maximize
-        self.unassigned_value = unassigned_value
         self.use_python_mp = use_python_mp
         self.n_jobs = n_jobs
 
@@ -85,20 +77,18 @@ class ScipySolver(LapSolver):
         Parameters
         ----------
         cost_matrix : np.ndarray
-            Cost matrix of shape (N, M).
+            Cost matrix of shape (N, M) where N <= M.
         num_valid : int, optional
-            Number of valid rows/cols if matrix is padded.
+            Number of valid rows if matrix is padded.
             If None, uses the full matrix size.
 
         Returns
         -------
-        row_to_col : np.ndarray
-            Array of shape (N,) where row_to_col[i] gives the column assigned to row i.
-            Unassigned rows have value `unassigned_value`.
+        result : np.ndarray
+            Array of column assignments.
         """
         return solve_single(
             cost_matrix,
-            self.unassigned_value,
             self.maximize,
             num_valid,
         )
@@ -109,19 +99,18 @@ class ScipySolver(LapSolver):
         Parameters
         ----------
         batch_cost_matrices : np.ndarray
-            Batch of cost matrices of shape (B, N, M).
+            Batch of cost matrices of shape (B, N, M) where N <= M.
         num_valid : np.ndarray or int, optional
-            Number of valid rows/cols for each matrix.
+            Number of valid rows for each matrix.
             Can be a scalar (same for all) or array of shape (B,).
 
         Returns
         -------
         np.ndarray
-            Array of shape (B, N) where element [b, i] gives the column assigned
-            to row i in batch element b. Unassigned rows have value `unassigned_value`.
+            Array of shape (B, M) with column assignments for each problem.
         """
         batch_cost_matrices = np.asarray(batch_cost_matrices)
-        batch_size, n_rows, _ = batch_cost_matrices.shape
+        batch_size, n_rows, n_cols = batch_cost_matrices.shape
 
         # Handle num_valid as scalar or array
         if num_valid is None:
@@ -134,7 +123,7 @@ class ScipySolver(LapSolver):
         if self.use_python_mp:
             # Use multiprocessing pool to solve in parallel
             args = [
-                (batch_cost_matrices[i], self.unassigned_value, self.maximize, num_valid_array[i])
+                (batch_cost_matrices[i], self.maximize, num_valid_array[i])
                 for i in range(batch_size)
             ]
             chunk_size = (batch_size + self.n_jobs - 1) // self.n_jobs
@@ -145,7 +134,7 @@ class ScipySolver(LapSolver):
             return np.stack(results)
         else:
             # Sequential solving
-            results = np.full((batch_size, n_rows), self.unassigned_value, dtype=np.int32)
+            results = np.empty((batch_size, n_cols), dtype=np.int32)
 
             for i in range(batch_size):
                 results[i] = self.solve_single(batch_cost_matrices[i], num_valid_array[i])

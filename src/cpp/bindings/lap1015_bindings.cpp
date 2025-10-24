@@ -63,7 +63,7 @@ py::array_t<int32_t> solve_lap_float(
     py::array_t<int32_t, py::array::c_style> result(Nx);
     auto r = result.mutable_unchecked<1>();
     for (py::ssize_t i = 0; i < Nx; i++) {
-        r(i) = (i < dim_rows) ? rowsol[i] : -1;
+        r(i) = rowsol[i];
     }
 
     delete[] rowsol;
@@ -107,7 +107,7 @@ py::array_t<int32_t> solve_lap_double(
     py::array_t<int32_t, py::array::c_style> result(Nx);
     auto r = result.mutable_unchecked<1>();
     for (py::ssize_t i = 0; i < Nx; i++) {
-        r(i) = (i < dim_rows) ? rowsol[i] : -1;
+        r(i) = rowsol[i];
     }
 
     delete[] rowsol;

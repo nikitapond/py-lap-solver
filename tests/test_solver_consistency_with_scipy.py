@@ -27,48 +27,53 @@ def get_all_solver_instances():
 def scipy_reference(cost_matrix):
     """Reference implementation using scipy directly.
 
+    Returns column assignments for each row, followed by unassigned columns
+    for rectangular matrices.
+
     Parameters
     ----------
     cost_matrix : np.ndarray
-        Cost matrix of shape (N, M).
+        Cost matrix of shape (N, M) where N <= M.
 
     Returns
     -------
-    row_to_col : np.ndarray
-        Array of shape (N,) where row_to_col[i] gives the column assigned to row i.
-        Unassigned rows have value -1.
+    result : np.ndarray
+        Array of column assignments. For rectangular matrices (N < M),
+        unassigned columns are appended at the end.
     """
-    n_rows = cost_matrix.shape[0]
+    n_cols = cost_matrix.shape[1]
 
     # Get scipy's assignment
-    row_ind, col_ind = linear_sum_assignment(cost_matrix)
+    _, col_ind = linear_sum_assignment(cost_matrix)
 
-    # Convert to row_to_col format
-    row_to_col = np.full(n_rows, -1, dtype=np.int32)
-    row_to_col[row_ind] = col_ind
+    # Concatenate assigned columns + unassigned columns
+    all_cols = np.arange(n_cols, dtype=np.int32)
+    unassigned_cols = all_cols[~np.isin(all_cols, col_ind)]
+    result = np.concatenate([col_ind, unassigned_cols])
 
-    return row_to_col
+    return result
 
 
-def compute_assignment_cost(cost_matrix, row_to_col):
+def compute_assignment_cost(cost_matrix, assignments):
     """Compute total cost of an assignment.
 
     Parameters
     ----------
     cost_matrix : np.ndarray
         Cost matrix of shape (N, M).
-    row_to_col : np.ndarray
-        Array of shape (N,) where row_to_col[i] gives the column assigned to row i.
+    assignments : np.ndarray
+        Array of column assignments where first N elements correspond to rows 0..N-1.
 
     Returns
     -------
     float
-        Total cost of the assignment.
+        Total cost of the assignment (only for the first N rows).
     """
+    n_rows = cost_matrix.shape[0]
     total_cost = 0.0
-    for row, col in enumerate(row_to_col):
-        if col >= 0:  # Skip unassigned rows
-            total_cost += cost_matrix[row, col]
+    for row in range(n_rows):
+        col = assignments[row]
+        total_cost += cost_matrix[row, col]
     return total_cost
 
 
@@ -108,10 +113,14 @@ def masked_square_problem(request):
     }
 
 
-@pytest.fixture(params=[(10, 15), (20, 10), (100, 50)])
+@pytest.fixture(params=[(10, 15), (10, 20), (50, 100)])
 def full_rect_problem(request):
-    """Fixture providing (cost_matrix, scipy_solution) for full rectangular matrices."""
+    """Fixture providing (cost_matrix, scipy_solution) for full rectangular matrices.
+
+    Following hepattn/lap1015 convention: rows <= cols.
+    """
     n_rows, n_cols = request.param
+    assert n_rows <= n_cols, f"Test fixture error: must have rows <= cols, got {n_rows}x{n_cols}"
     cost_matrix = get_full_rect_matrix(n_rows, n_cols)
     ref_row_to_col = scipy_reference(cost_matrix)
     ref_cost = compute_assignment_cost(cost_matrix, ref_row_to_col)
@@ -220,17 +229,17 @@ class TestSolverConsistency:
         problem = full_rect_problem
         solver = solver_instance
 
-        row_to_col = solver.solve_single(problem["cost_matrix"])
-        cost = compute_assignment_cost(problem["cost_matrix"], row_to_col)
+        result = solver.solve_single(problem["cost_matrix"])
+        cost = compute_assignment_cost(problem["cost_matrix"], result)
 
         # Check costs match
         assert np.isclose(
             cost, problem["ref_cost"], atol=1e-6
         ), f"{solver_name}: Cost mismatch: {cost} vs {problem['ref_cost']}"
 
-        # Check shapes
-        n_rows = problem["cost_matrix"].shape[0]
-        assert row_to_col.shape == (n_rows,)
+        # Check shape - returns size M (columns), with first N being assignments
+        n_cols = problem["cost_matrix"].shape[1]
+        assert result.shape == (n_cols,)
 
     def test_batch_square(self, solver_name, solver_instance, batch_square_problem):
         """Test batch solving with square matrices."""
