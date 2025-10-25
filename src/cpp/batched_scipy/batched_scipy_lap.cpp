@@ -56,12 +56,16 @@ int solve_batched_lap_impl(
         // Get pointer to this batch's cost matrix
         const T* cost_matrix = cost_matrices + b * nr * nc;
 
-        // Convert to double and create a contiguous copy for the valid region
-        std::vector<double> cost_double(nr_valid * nc_valid);
+        // Create a contiguous copy of the valid region (no type conversion needed!)
+        std::vector<T> cost_copy;
+        cost_copy.reserve(nr_valid * nc_valid);
+        cost_copy.resize(nr_valid * nc_valid);
+
+        // Copy only the valid region - row by row for better cache locality
         for (int64_t i = 0; i < nr_valid; i++) {
-            for (int64_t j = 0; j < nc_valid; j++) {
-                cost_double[i * nc_valid + j] = static_cast<double>(cost_matrix[i * nc + j]);
-            }
+            const T* src = cost_matrix + i * nc;
+            T* dst = cost_copy.data() + i * nc_valid;
+            std::copy(src, src + nc_valid, dst);
         }
 
         // Allocate output arrays for scipy solver
@@ -70,10 +74,10 @@ int solve_batched_lap_impl(
         std::vector<int64_t> row_ind(num_assignments);
         std::vector<int64_t> col_ind(num_assignments);
 
-        // Call the scipy solver
-        int status = solve_rectangular_linear_sum_assignment(
+        // Call the templated scipy solver (no conversion overhead!)
+        int status = rectangular_lsap::solve_rectangular_linear_sum_assignment_template<T>(
             nr_valid, nc_valid,
-            cost_double.data(),
+            cost_copy.data(),
             maximize,
             row_ind.data(),
             col_ind.data()
@@ -130,12 +134,16 @@ int solve_batched_lap_impl(
             // Get pointer to this batch's cost matrix
             const T* cost_matrix = cost_matrices + b * nr * nc;
 
-            // Convert to double and create a contiguous copy for the valid region
-            std::vector<double> cost_double(nr_valid * nc_valid);
+            // Create a contiguous copy of the valid region (no type conversion needed!)
+            std::vector<T> cost_copy;
+            cost_copy.reserve(nr_valid * nc_valid);
+            cost_copy.resize(nr_valid * nc_valid);
+
+            // Copy only the valid region - row by row for better cache locality
             for (int64_t i = 0; i < nr_valid; i++) {
-                for (int64_t j = 0; j < nc_valid; j++) {
-                    cost_double[i * nc_valid + j] = static_cast<double>(cost_matrix[i * nc + j]);
-                }
+                const T* src = cost_matrix + i * nc;
+                T* dst = cost_copy.data() + i * nc_valid;
+                std::copy(src, src + nc_valid, dst);
             }
 
             // Allocate output arrays for scipy solver
@@ -144,10 +152,10 @@ int solve_batched_lap_impl(
             std::vector<int64_t> row_ind(num_assignments);
             std::vector<int64_t> col_ind(num_assignments);
 
-            // Call the scipy solver
-            int status = solve_rectangular_linear_sum_assignment(
+            // Call the templated scipy solver (no conversion overhead!)
+            int status = rectangular_lsap::solve_rectangular_linear_sum_assignment_template<T>(
                 nr_valid, nc_valid,
-                cost_double.data(),
+                cost_copy.data(),
                 maximize,
                 row_ind.data(),
                 col_ind.data()
