@@ -28,22 +28,20 @@ def solve_single(cost_matrix, unassigned_value, maximize, num_valid):
         Unassigned rows have value `unassigned_value`.
 
     """
-    cost_matrix = np.asarray(cost_matrix)
-    n_rows, n_cols = cost_matrix.shape
+    n_rows = cost_matrix.shape[0]
 
-    cost_matrix_to_solve = cost_matrix[:num_valid, :] if num_valid is not None else cost_matrix
+    # Slice to valid region if needed (this creates a view, not a copy)
+    cost_to_solve = cost_matrix[:num_valid, :] if num_valid is not None else cost_matrix
 
     # Scipy minimizes by default, so negate for maximization
     if maximize:
-        cost_matrix_to_solve = -cost_matrix_to_solve
+        cost_to_solve = -cost_to_solve
 
     # Scipy returns (row_ind, col_ind) pairs
-    row_ind, col_ind = linear_sum_assignment(cost_matrix_to_solve)
+    row_ind, col_ind = linear_sum_assignment(cost_to_solve)
 
     # Convert to full-size array matching input row dimension
     row_to_col = np.full(n_rows, unassigned_value, dtype=np.int32)
-
-    # Fill in the assignments
     row_to_col[row_ind] = col_ind
 
     return row_to_col

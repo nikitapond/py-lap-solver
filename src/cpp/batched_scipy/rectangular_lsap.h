@@ -47,6 +47,18 @@ int solve_rectangular_linear_sum_assignment(intptr_t nr, intptr_t nc,
 
 #ifdef __cplusplus
 }
+
+// C++ templated version for float/double support
+namespace rectangular_lsap {
+
+template<typename T>
+int solve_rectangular_linear_sum_assignment_template(
+    intptr_t nr, intptr_t nc,
+    T* input_cost, bool maximize,
+    int64_t* a, int64_t* b);
+
+} // namespace rectangular_lsap
+
 #endif
 
 #endif
