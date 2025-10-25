@@ -57,10 +57,17 @@ int solve_batched_lap_impl(
         const T* cost_matrix = cost_matrices + b * nr * nc;
 
         // Convert to double and create a contiguous copy for the valid region
-        std::vector<double> cost_double(nr_valid * nc_valid);
+        // Use reserve + resize to avoid initialization overhead
+        std::vector<double> cost_double;
+        cost_double.reserve(nr_valid * nc_valid);
+        cost_double.resize(nr_valid * nc_valid);
+
+        // Optimized copy loop - process row by row with better cache locality
         for (int64_t i = 0; i < nr_valid; i++) {
+            const T* src = cost_matrix + i * nc;
+            double* dst = cost_double.data() + i * nc_valid;
             for (int64_t j = 0; j < nc_valid; j++) {
-                cost_double[i * nc_valid + j] = static_cast<double>(cost_matrix[i * nc + j]);
+                dst[j] = static_cast<double>(src[j]);
             }
         }
 
@@ -131,10 +138,17 @@ int solve_batched_lap_impl(
             const T* cost_matrix = cost_matrices + b * nr * nc;
 
             // Convert to double and create a contiguous copy for the valid region
-            std::vector<double> cost_double(nr_valid * nc_valid);
+            // Use reserve + resize to avoid initialization overhead
+            std::vector<double> cost_double;
+            cost_double.reserve(nr_valid * nc_valid);
+            cost_double.resize(nr_valid * nc_valid);
+
+            // Optimized copy loop - process row by row with better cache locality
             for (int64_t i = 0; i < nr_valid; i++) {
+                const T* src = cost_matrix + i * nc;
+                double* dst = cost_double.data() + i * nc_valid;
                 for (int64_t j = 0; j < nc_valid; j++) {
-                    cost_double[i * nc_valid + j] = static_cast<double>(cost_matrix[i * nc + j]);
+                    dst[j] = static_cast<double>(src[j]);
                 }
             }
 

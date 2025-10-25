@@ -1,4 +1,4 @@
-from multiprocessing import Pool
+from multiprocessing.pool import ThreadPool as Pool
 
 import numpy as np
 from scipy.optimize import linear_sum_assignment
